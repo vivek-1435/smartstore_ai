@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://smartstore-ai-backend-zz9b.onrender.com"
+      "destination": "https://smartstore-ai-backend-zz9b.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
