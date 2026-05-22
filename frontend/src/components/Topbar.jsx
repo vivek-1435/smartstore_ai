@@ -43,6 +43,14 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
     toast.success('Logged out successfully');
   };
 
+  const handleNotificationClick = () => {
+    if (lowStockCount > 0) {
+      navigate('/products?stock=low');
+      return;
+    }
+    toast.success('No new notifications');
+  };
+
   return (
     <header className="premium-topbar">
       <div className="topbar-title">
@@ -62,7 +70,8 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
           <input
             placeholder="Search products, orders, customers..."
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && event.currentTarget.value.trim()) navigate('/products');
+              const value = event.currentTarget.value.trim();
+              if (event.key === 'Enter' && value) navigate(`/products?search=${encodeURIComponent(value)}`);
             }}
           />
         </div>
@@ -76,7 +85,7 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}
         </button>
 
-        <button type="button" className="icon-button" data-tooltip={lowStockCount ? `${lowStockCount} low stock alerts` : 'Notifications'}>
+        <button type="button" onClick={handleNotificationClick} className="icon-button" data-tooltip={lowStockCount ? `${lowStockCount} low stock alerts` : 'Notifications'}>
           <Bell size={17} />
           {lowStockCount > 0 && <span className="notification-dot" />}
         </button>

@@ -7,9 +7,10 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import AIStudio from './pages/AIStudio';
 import Analytics from './pages/Analytics';
-import PlaceholderPage from './pages/PlaceholderPage';
 import AccountProfile from './pages/AccountProfile';
 import StoreSettings from './pages/StoreSettings';
+import Orders from './pages/Orders';
+import Customers from './pages/Customers';
 
 const App = () => {
   return (
@@ -32,8 +33,8 @@ const App = () => {
             <Route path="ai-studio" element={<Navigate to="/ai-insights" replace />} />
             <Route path="ai-insights" element={<AIStudio />} />
             <Route path="analytics" element={<Analytics />} />
-            <Route path="orders" element={<PlaceholderPage type="orders" />} />
-            <Route path="customers" element={<PlaceholderPage type="customers" />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="customers" element={<Customers />} />
             <Route path="profile" element={<AccountProfile />} />
             <Route path="settings" element={<StoreSettings />} />
           </Route>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Edit2, Trash2, Sparkles, Package,
   ChevronUp, ChevronDown, X, Save, AlertTriangle, Image,
@@ -427,11 +428,15 @@ const AIGeneratorModal = ({ product, onClose, onSave }) => {
 };
 
 const Products = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const query = new URLSearchParams(location.search);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => query.get('search') || '');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [lowStockOnly, setLowStockOnly] = useState(() => query.get('stock') === 'low');
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState(-1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -462,6 +467,16 @@ const Products = () => {
     const timer = setTimeout(fetchProducts, 300);
     return () => clearTimeout(timer);
   }, [fetchProducts]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearch(params.get('search') || '');
+    setLowStockOnly(params.get('stock') === 'low');
+    if (location.pathname === '/add-product') {
+      setEditProduct(null);
+      setModalOpen(true);
+    }
+  }, [location.pathname, location.search]);
 
   const handleDelete = async (id) => {
     try {
@@ -495,6 +510,7 @@ const Products = () => {
     return `badge ${map[status] || 'badge-info'}`;
   };
 
+  const displayedProducts = lowStockOnly ? products.filter(p => p.isLowStock) : products;
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
   const lowStockCount = products.filter(p => p.isLowStock).length;
 
@@ -506,7 +522,7 @@ const Products = () => {
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Products</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {products.length} products • ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0 })} inventory
+              {displayedProducts.length} shown • {products.length} total • ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0 })} inventory
               {lowStockCount > 0 && <span className="badge badge-warning">⚠️ {lowStockCount} low stock</span>}
             </p>
           </div>
@@ -539,8 +555,13 @@ const Products = () => {
           <option value="inactive">Inactive</option>
           <option value="archived">Archived</option>
         </select>
-        {(search || categoryFilter || statusFilter) && (
-          <button onClick={() => { setSearch(''); setCategoryFilter(''); setStatusFilter(''); }} className="btn btn-ghost" style={{ padding: '0.5rem 0.75rem' }}>
+        {lowStockCount > 0 && (
+          <button onClick={() => setLowStockOnly(value => !value)} className={`btn ${lowStockOnly ? 'btn-secondary' : 'btn-ghost'}`} style={{ padding: '0.5rem 0.75rem' }}>
+            <AlertTriangle size={16} /> Low Stock
+          </button>
+        )}
+        {(search || categoryFilter || statusFilter || lowStockOnly) && (
+          <button onClick={() => { setSearch(''); setCategoryFilter(''); setStatusFilter(''); setLowStockOnly(false); navigate('/products', { replace: true }); }} className="btn btn-ghost" style={{ padding: '0.5rem 0.75rem' }}>
             <X size={16} /> Clear
           </button>
         )}
@@ -577,7 +598,7 @@ const Products = () => {
                     ))}
                   </tr>
                 ))
-              ) : products.length === 0 ? (
+              ) : displayedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
                     <div className="empty-state">
@@ -588,7 +609,7 @@ const Products = () => {
                   </td>
                 </tr>
               ) : (
-                products.map(product => (
+                displayedProducts.map(product => (
                   <tr key={product._id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

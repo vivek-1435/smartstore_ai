@@ -19,18 +19,27 @@ import { useAuth } from '../context/AuthContext';
 const StoreSettings = () => {
   const { user, updateProfile } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    storeName: user?.storeName || '',
-    legalName: user?.storeName || '',
-    supportEmail: user?.email || '',
-    storeUrl: 'smartstore.ai/zone-store',
-    currency: 'USD',
-    timezone: 'Asia/Kolkata',
-    address: 'Ahmedabad, Gujarat, India',
-    taxId: '',
-    inventoryPolicy: 'auto-alert',
-    defaultMargin: 32,
-    freeShipping: 99,
+  const [form, setForm] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('smartstore_store_settings') || '{}');
+    return {
+      storeName: user?.storeName || '',
+      legalName: saved.legalName || user?.storeName || '',
+      supportEmail: saved.supportEmail || user?.email || '',
+      storeUrl: saved.storeUrl || 'smartstore.ai/zone-store',
+      currency: saved.currency || 'USD',
+      timezone: saved.timezone || 'Asia/Kolkata',
+      address: saved.address || '',
+      taxId: saved.taxId || '',
+      inventoryPolicy: saved.inventoryPolicy || 'auto-alert',
+      defaultMargin: saved.defaultMargin || 32,
+      freeShipping: saved.freeShipping || 99,
+      aiAutomation: {
+        pricing: saved.aiAutomation?.pricing ?? true,
+        inventory: saved.aiAutomation?.inventory ?? true,
+        weeklyReport: saved.aiAutomation?.weeklyReport ?? true,
+        approval: saved.aiAutomation?.approval ?? false,
+      },
+    };
   });
 
   const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
@@ -40,6 +49,19 @@ const StoreSettings = () => {
     setSaving(true);
     try {
       await updateProfile({ storeName: form.storeName });
+      localStorage.setItem('smartstore_store_settings', JSON.stringify({
+        legalName: form.legalName,
+        supportEmail: form.supportEmail,
+        storeUrl: form.storeUrl,
+        currency: form.currency,
+        timezone: form.timezone,
+        address: form.address,
+        taxId: form.taxId,
+        inventoryPolicy: form.inventoryPolicy,
+        defaultMargin: form.defaultMargin,
+        freeShipping: form.freeShipping,
+        aiAutomation: form.aiAutomation,
+      }));
       toast.success('Store settings updated');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not update store settings');
@@ -172,10 +194,10 @@ const StoreSettings = () => {
             <Bot size={20} />
           </div>
           <div className="settings-feature-grid">
-            <label><input type="checkbox" defaultChecked /> <BadgeDollarSign size={17} /> Pricing recommendations</label>
-            <label><input type="checkbox" defaultChecked /> <PackageCheck size={17} /> Inventory suggestions</label>
-            <label><input type="checkbox" defaultChecked /> <ReceiptText size={17} /> Weekly sales improvement report</label>
-            <label><input type="checkbox" /> <ShieldCheck size={17} /> Require approval before applying AI changes</label>
+            <label><input type="checkbox" checked={form.aiAutomation.pricing} onChange={(event) => setForm(current => ({ ...current, aiAutomation: { ...current.aiAutomation, pricing: event.target.checked } }))} /> <BadgeDollarSign size={17} /> Pricing recommendations</label>
+            <label><input type="checkbox" checked={form.aiAutomation.inventory} onChange={(event) => setForm(current => ({ ...current, aiAutomation: { ...current.aiAutomation, inventory: event.target.checked } }))} /> <PackageCheck size={17} /> Inventory suggestions</label>
+            <label><input type="checkbox" checked={form.aiAutomation.weeklyReport} onChange={(event) => setForm(current => ({ ...current, aiAutomation: { ...current.aiAutomation, weeklyReport: event.target.checked } }))} /> <ReceiptText size={17} /> Weekly sales improvement report</label>
+            <label><input type="checkbox" checked={form.aiAutomation.approval} onChange={(event) => setForm(current => ({ ...current, aiAutomation: { ...current.aiAutomation, approval: event.target.checked } }))} /> <ShieldCheck size={17} /> Require approval before applying AI changes</label>
           </div>
         </section>
 

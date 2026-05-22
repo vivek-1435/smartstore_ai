@@ -62,4 +62,10 @@ export const analyticsAPI = {
   lowStock: () => API.get('/analytics/low-stock'),
 };
 
+// Sales / Customers
+export const salesAPI = {
+  orders: (params) => API.get('/sales/orders', { params }),
+  customers: (params) => API.get('/sales/customers', { params }),
+};
+
 export default API;

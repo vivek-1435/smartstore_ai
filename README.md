@@ -249,6 +249,13 @@ GET /api/analytics/by-channel
 GET /api/analytics/low-stock
 ```
 
+Sales:
+
+```text
+GET /api/sales/orders
+GET /api/sales/customers
+```
+
 AI:
 
 ```text

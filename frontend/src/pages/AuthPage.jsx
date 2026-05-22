@@ -122,7 +122,13 @@ const AuthPage = () => {
 
           {mode === 'login' && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <a href="#" style={{ fontSize: '0.8rem', color: 'var(--g-blue)', fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
+              <button
+                type="button"
+                onClick={() => toast('Password reset is not enabled for this demo. Contact the store admin to reset access.')}
+                style={{ fontSize: '0.8rem', color: 'var(--g-blue)', fontWeight: 600, textDecoration: 'none', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
+              >
+                Forgot password?
+              </button>
             </div>
           )}
 

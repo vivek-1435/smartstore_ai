@@ -16,13 +16,22 @@ import { useAuth } from '../context/AuthContext';
 const AccountProfile = () => {
   const { user, updateProfile } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    avatar: user?.avatar || '',
-    phone: '',
-    role: user?.role || 'admin',
-    timezone: 'Asia/Kolkata',
+  const [form, setForm] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('smartstore_account_preferences') || '{}');
+    return {
+      name: user?.name || '',
+      email: user?.email || '',
+      avatar: user?.avatar || '',
+      phone: saved.phone || '',
+      role: user?.role || 'admin',
+      timezone: saved.timezone || 'Asia/Kolkata',
+      alerts: {
+        sales: saved.alerts?.sales ?? true,
+        inventory: saved.alerts?.inventory ?? true,
+        weekly: saved.alerts?.weekly ?? false,
+        ai: saved.alerts?.ai ?? true,
+      },
+    };
   });
 
   const initials = form.name
@@ -39,6 +48,11 @@ const AccountProfile = () => {
         name: form.name,
         avatar: form.avatar,
       });
+      localStorage.setItem('smartstore_account_preferences', JSON.stringify({
+        phone: form.phone,
+        timezone: form.timezone,
+        alerts: form.alerts,
+      }));
       toast.success('Account profile updated');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not update profile');
@@ -95,6 +109,15 @@ const AccountProfile = () => {
                 <option value="viewer">Viewer</option>
               </select>
             </label>
+            <label>
+              <span className="label">Timezone</span>
+              <select className="input" value={form.timezone} onChange={(event) => updateField('timezone', event.target.value)}>
+                <option value="Asia/Kolkata">Asia/Kolkata</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="Asia/Dubai">Asia/Dubai</option>
+              </select>
+            </label>
             <label className="span-2">
               <span className="label">Avatar image URL</span>
               <div className="input-with-icon">
@@ -123,8 +146,8 @@ const AccountProfile = () => {
           <div className="settings-list">
             <div>
               <KeyRound size={17} />
-              <span>Password last changed</span>
-              <strong>Not available</strong>
+              <span>Password security</span>
+              <strong>Protected</strong>
             </div>
             <div>
               <CheckCircle2 size={17} />
@@ -148,10 +171,10 @@ const AccountProfile = () => {
             <Bell size={20} />
           </div>
           <div className="toggle-list">
-            <label><input type="checkbox" defaultChecked /> Sales alerts</label>
-            <label><input type="checkbox" defaultChecked /> Low inventory alerts</label>
-            <label><input type="checkbox" /> Weekly executive summary</label>
-            <label><input type="checkbox" defaultChecked /> AI recommendation emails</label>
+            <label><input type="checkbox" checked={form.alerts.sales} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, sales: event.target.checked } }))} /> Sales alerts</label>
+            <label><input type="checkbox" checked={form.alerts.inventory} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, inventory: event.target.checked } }))} /> Low inventory alerts</label>
+            <label><input type="checkbox" checked={form.alerts.weekly} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, weekly: event.target.checked } }))} /> Weekly executive summary</label>
+            <label><input type="checkbox" checked={form.alerts.ai} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, ai: event.target.checked } }))} /> AI recommendation emails</label>
           </div>
           <div className="mini-note">
             <Mail size={16} />

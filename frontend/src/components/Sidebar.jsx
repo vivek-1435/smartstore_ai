@@ -79,7 +79,7 @@ const Sidebar = ({ lowStockCount = 0 }) => {
       {!collapsed && (
         <div className="sidebar-insight">
           <Sparkles size={16} />
-          <p>Wireless earbuds sales increased 24% this month. Consider adding a premium bundle.</p>
+          <p>Open AI Insights to generate recommendations from your current products and sales data.</p>
         </div>
       )}
 
