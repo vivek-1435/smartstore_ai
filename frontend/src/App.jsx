@@ -7,6 +7,9 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import AIStudio from './pages/AIStudio';
 import Analytics from './pages/Analytics';
+import PlaceholderPage from './pages/PlaceholderPage';
+import AccountProfile from './pages/AccountProfile';
+import StoreSettings from './pages/StoreSettings';
 
 const App = () => {
   return (
@@ -23,9 +26,16 @@ const App = () => {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Navigate to="/" replace />} />
             <Route path="products" element={<Products />} />
-            <Route path="ai-studio" element={<AIStudio />} />
+            <Route path="add-product" element={<Products />} />
+            <Route path="ai-studio" element={<Navigate to="/ai-insights" replace />} />
+            <Route path="ai-insights" element={<AIStudio />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="orders" element={<PlaceholderPage type="orders" />} />
+            <Route path="customers" element={<PlaceholderPage type="customers" />} />
+            <Route path="profile" element={<AccountProfile />} />
+            <Route path="settings" element={<StoreSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

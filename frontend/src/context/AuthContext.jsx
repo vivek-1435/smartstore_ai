@@ -11,6 +11,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('smartstore_token'));
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('smartstore_token');
+    localStorage.removeItem('smartstore_user');
+    setToken(null);
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     const verifyToken = async () => {
       if (token) {
@@ -25,7 +32,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     verifyToken();
-  }, []);
+  }, [logout, token]);
 
   const login = useCallback(async (email, password) => {
     const { data } = await authAPI.login({ email, password });
@@ -45,15 +52,15 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('smartstore_token');
-    localStorage.removeItem('smartstore_user');
-    setToken(null);
-    setUser(null);
+  const updateProfile = useCallback(async (updates) => {
+    const { data } = await authAPI.updateMe(updates);
+    localStorage.setItem('smartstore_user', JSON.stringify(data.user));
+    setUser(data.user);
+    return data;
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

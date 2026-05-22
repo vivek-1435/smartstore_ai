@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, Edit2, Trash2, Sparkles, Package, Filter,
-  ChevronUp, ChevronDown, X, Save, AlertTriangle, Image, RefreshCw
+  Plus, Search, Edit2, Trash2, Sparkles, Package,
+  ChevronUp, ChevronDown, X, Save, AlertTriangle, Image,
+  Eye, MessageSquare, Tag
 } from 'lucide-react';
 import { productAPI, aiAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -11,6 +12,140 @@ const CATEGORIES = ['Electronics', 'Clothing', 'Home & Garden', 'Beauty', 'Sport
 const emptyForm = {
   name: '', description: '', price: '', comparePrice: '', stock: '',
   lowStockThreshold: 10, category: '', tags: '', imageUrl: '', sku: '', status: 'active',
+};
+
+const AIContentBadges = ({ product }) => {
+  const items = [
+    { key: 'description', label: 'Description', ready: !!product.aiDescription, icon: Sparkles },
+    { key: 'seo', label: 'SEO', ready: product.tags?.length > 0 || product.seoKeywords?.length > 0, icon: Tag },
+    { key: 'caption', label: 'Caption', ready: !!product.aiCaption, icon: MessageSquare },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+      {items.map(({ key, label, ready, icon: Icon }) => (
+        <span
+          key={key}
+          className={`badge ${ready ? 'badge-info' : 'badge-neutral'}`}
+          style={{ opacity: ready ? 1 : 0.72, textTransform: 'none', letterSpacing: 0 }}
+        >
+          <Icon size={11} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const ProductDetailsModal = ({ product, onClose, onGenerate }) => {
+  if (!product) return null;
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 880 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 10, background: 'var(--surface-alt)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {product.imageUrl ? (
+                <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <Package size={24} style={{ color: 'var(--text-muted)' }} />
+              )}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                {product.category} • ${product.price?.toFixed(2)} • {product.stock} in stock
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: '0.5rem', borderRadius: '50%' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <section className="card" style={{ padding: '1rem', boxShadow: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} style={{ color: 'var(--g-blue)' }} /> AI Description
+                </h3>
+                <span className={`badge ${product.aiDescription ? 'badge-success' : 'badge-neutral'}`}>
+                  {product.aiDescription ? 'Ready' : 'Missing'}
+                </span>
+              </div>
+              {product.aiDescription ? (
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.88rem', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{product.aiDescription}</p>
+              ) : (
+                <div className="empty-state" style={{ padding: '1.25rem', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                  <p>No AI description saved yet.</p>
+                </div>
+              )}
+            </section>
+
+            <section className="card" style={{ padding: '1rem', boxShadow: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <MessageSquare size={16} style={{ color: 'var(--g-red)' }} /> Marketing Caption
+                </h3>
+                <span className={`badge ${product.aiCaption ? 'badge-success' : 'badge-neutral'}`}>
+                  {product.aiCaption ? 'Ready' : 'Missing'}
+                </span>
+              </div>
+              {product.aiCaption ? (
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.88rem', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{product.aiCaption}</p>
+              ) : (
+                <div className="empty-state" style={{ padding: '1.25rem', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                  <p>No marketing caption saved yet.</p>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <section className="card" style={{ padding: '1rem', boxShadow: 'none' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Tag size={16} style={{ color: 'var(--g-green)' }} /> SEO & Product Tags
+              </h3>
+              <p className="label">Product Tags</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                {product.tags?.length ? product.tags.map((tag) => <span key={tag} className="chip">{tag}</span>) : <span className="badge badge-neutral">No tags</span>}
+              </div>
+              <p className="label">SEO Keywords</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {product.seoKeywords?.length ? product.seoKeywords.map((keyword) => (
+                  <span key={keyword} className="chip" style={{ background: 'var(--g-green-light)', color: 'var(--g-green)', borderColor: 'rgba(52,168,83,0.3)' }}>{keyword}</span>
+                )) : <span className="badge badge-neutral">No keywords</span>}
+              </div>
+            </section>
+
+            <section className="card" style={{ padding: '1rem', boxShadow: 'none' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem' }}>Storefront Content</h3>
+              <p className="label">Manual Description</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                {product.description || 'No manual description added.'}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                <div>
+                  <p className="label">SKU</p>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 700 }}>{product.sku || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="label">Status</p>
+                  <span className="badge badge-success">{product.status}</span>
+                </div>
+              </div>
+            </section>
+
+            <button onClick={() => onGenerate(product)} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}>
+              <Sparkles size={16} /> Generate or Update AI Content
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const ProductModal = ({ product, onClose, onSave }) => {
@@ -302,6 +437,7 @@ const Products = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [aiProduct, setAiProduct] = useState(null);
+  const [detailsProduct, setDetailsProduct] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const fetchProducts = useCallback(async () => {
@@ -341,6 +477,7 @@ const Products = () => {
   const handleSave = (product, mode) => {
     if (mode === 'create') setProducts(prev => [product, ...prev]);
     else setProducts(prev => prev.map(p => p._id === product._id ? product : p));
+    setDetailsProduct(current => current?._id === product._id ? product : current);
   };
 
   const toggleSort = (field) => {
@@ -348,7 +485,7 @@ const Products = () => {
     else { setSortField(field); setSortDir(-1); }
   };
 
-  const SortIcon = ({ field }) => {
+  const renderSortIcon = (field) => {
     if (sortField !== field) return <ChevronUp size={14} style={{ color: 'var(--border)' }} />;
     return sortDir === -1 ? <ChevronDown size={14} style={{ color: 'var(--g-blue)' }} /> : <ChevronUp size={14} style={{ color: 'var(--g-blue)' }} />;
   };
@@ -417,16 +554,17 @@ const Products = () => {
               <tr>
                 <th>Product</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('category')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Category <SortIcon field="category" /></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Category {renderSortIcon('category')}</div>
                 </th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('price')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Price <SortIcon field="price" /></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Price {renderSortIcon('price')}</div>
                 </th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('stock')}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Stock <SortIcon field="stock" /></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Stock {renderSortIcon('stock')}</div>
                 </th>
                 <th>Sales</th>
                 <th>Status</th>
+                <th>AI Content</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
@@ -434,14 +572,14 @@ const Products = () => {
               {loading ? (
                 Array(6).fill(0).map((_, i) => (
                   <tr key={i}>
-                    {Array(7).fill(0).map((_, j) => (
+                    {Array(8).fill(0).map((_, j) => (
                       <td key={j}><div style={{ height: 16, width: j===0 ? 120 : 60, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="empty-state">
                       <Package size={48} style={{ color: 'var(--text-muted)' }} />
                       <p style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>No products found</p>
@@ -497,7 +635,13 @@ const Products = () => {
                       <span className={getStatusBadge(product.status)}>{product.status}</span>
                     </td>
                     <td>
+                      <AIContentBadges product={product} />
+                    </td>
+                    <td>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <button onClick={() => setDetailsProduct(product)} className="btn-ghost" style={{ padding: '0.375rem', borderRadius: 8, color: 'var(--text-secondary)' }} data-tooltip="View Details">
+                          <Eye size={16} />
+                        </button>
                         <button onClick={() => setAiProduct(product)} className="btn-ghost" style={{ padding: '0.375rem', borderRadius: 8, color: 'var(--g-blue)' }} data-tooltip="AI Enhance">
                           <Sparkles size={16} />
                         </button>
@@ -530,6 +674,16 @@ const Products = () => {
           product={aiProduct}
           onClose={() => setAiProduct(null)}
           onSave={fetchProducts}
+        />
+      )}
+      {detailsProduct && (
+        <ProductDetailsModal
+          product={products.find(p => p._id === detailsProduct._id) || detailsProduct}
+          onClose={() => setDetailsProduct(null)}
+          onGenerate={(product) => {
+            setDetailsProduct(null);
+            setAiProduct(product);
+          }}
         />
       )}
       {deleteConfirm && (

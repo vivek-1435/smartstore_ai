@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler
@@ -42,7 +42,7 @@ const Analytics = () => {
   const [channelData, setChannelData] = useState([]);
   const [lowStock, setLowStock] = useState([]);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const [revRes, topRes, catRes, chanRes, lowRes] = await Promise.all([
@@ -62,9 +62,9 @@ const Analytics = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period]);
 
-  useEffect(() => { fetchAll(); }, [period]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const COLORS = ['#1a73e8', '#34a853', '#fbbc05', '#ea4335', '#a142f4', '#24c1e0', '#ff8bc8', '#ff7043'];
 
@@ -156,7 +156,7 @@ const Analytics = () => {
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Analytics</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Detailed performance insights for your store</p>

@@ -34,6 +34,7 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         storeName: user.storeName,
         createdAt: user.createdAt,
       },
@@ -75,6 +76,7 @@ const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
         storeName: user.storeName,
         createdAt: user.createdAt,
       },
@@ -95,10 +97,46 @@ const getMe = async (req, res) => {
       name: req.user.name,
       email: req.user.email,
       role: req.user.role,
+      avatar: req.user.avatar,
       storeName: req.user.storeName,
       createdAt: req.user.createdAt,
     },
   });
 };
 
-module.exports = { register, login, getMe };
+// @desc    Update current user profile
+// @route   PUT /api/auth/me
+const updateMe = async (req, res) => {
+  try {
+    const allowed = ['name', 'storeName', 'avatar'];
+    const updates = {};
+
+    allowed.forEach((field) => {
+      if (typeof req.body[field] === 'string') updates[field] = req.body[field].trim();
+    });
+
+    const user = await User.findByIdAndUpdate(req.user._id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        storeName: user.storeName,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating profile.' });
+  }
+};
+
+module.exports = { register, login, getMe, updateMe };

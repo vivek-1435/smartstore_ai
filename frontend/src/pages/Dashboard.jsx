@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   TrendingUp,
-  TrendingDown,
   Package,
   DollarSign,
   ShoppingCart,
@@ -25,7 +24,7 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { analyticsAPI, productAPI, aiAPI } from "../services/api";
+import { analyticsAPI, aiAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -110,7 +109,7 @@ const Dashboard = () => {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [chartPeriod, setChartPeriod] = useState(30);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [summaryRes, revenueRes, topRes, lowStockRes] = await Promise.all([
@@ -128,11 +127,11 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chartPeriod]);
 
   useEffect(() => {
     fetchData();
-  }, [chartPeriod]);
+  }, [fetchData]);
 
   const generateInsights = async () => {
     setInsightsLoading(true);
@@ -140,6 +139,8 @@ const Dashboard = () => {
       const { data } = await aiAPI.salesInsights({
         products: topProducts,
         totalRevenue: summary?.revenue,
+        orders: summary?.totalOrders,
+        lowStock,
         period: `${chartPeriod} days`,
       });
       setAiInsights(data.data);
@@ -215,16 +216,17 @@ const Dashboard = () => {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="dashboard-page">
       {/* Header */}
-      <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
+      <section className="premium-hero">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
+            <span className="hero-eyebrow">Premium SaaS Dashboard</span>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               {greeting}, {user?.name?.split(" ")[0]} 👋
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-              Here's what's happening with {user?.storeName}
+              Analyze product performance, revenue trends, sales growth, and low-performing products for {user?.storeName}.
             </p>
           </div>
           <button
@@ -236,7 +238,7 @@ const Dashboard = () => {
             Refresh
           </button>
         </div>
-      </div>
+      </section>
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
@@ -416,7 +418,7 @@ const Dashboard = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <Sparkles size={20} style={{ color: 'var(--g-blue)' }} />
             <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              AI Business Insights
+              AI Sales Insights
             </h3>
             <span className="badge badge-info" style={{ marginLeft: 'auto' }}>Gemini Pro</span>
           </div>
@@ -427,8 +429,13 @@ const Dashboard = () => {
                 <Sparkles size={28} style={{ color: 'var(--g-blue)' }} />
               </div>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', maxWidth: 240 }}>
-                Let Google AI analyze your store performance and suggest improvements.
+                Generate pricing recommendations, inventory suggestions, trending product predictions, and sales improvement advice.
               </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.5rem', width: '100%', maxWidth: 420, marginBottom: '1.5rem' }}>
+                {['Product performance', 'Revenue trends', 'Sales growth', 'Low performers'].map((item) => (
+                  <span key={item} className="badge badge-neutral" style={{ justifyContent: 'center', padding: '0.5rem' }}>{item}</span>
+                ))}
+              </div>
               <button
                 onClick={generateInsights}
                 className="btn btn-primary"
@@ -451,10 +458,19 @@ const Dashboard = () => {
               <div className="ai-result">
                 {aiInsights.summary}
               </div>
+
+              <div style={{ padding: '1rem', borderRadius: 12, background: 'var(--g-blue-light)', border: '1px solid rgba(26,115,232,0.2)' }}>
+                <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--g-blue)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem' }}>
+                  Example signal
+                </p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                  Wireless earbuds sales increased 24% this month. Consider increasing inventory and running a premium bundle offer.
+                </p>
+              </div>
               
               <div>
                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--g-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-                  Action Items
+                  Sales Improvement Advice
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {aiInsights.actionItems?.slice(0, 3).map((item, i) => (
@@ -491,6 +507,24 @@ const Dashboard = () => {
                         </li>
                       ))}
                   </ul>
+                </div>
+              )}
+
+              {aiInsights.pricingRecommendations?.length > 0 && (
+                <div>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b06000', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                    Pricing Recommendations
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {aiInsights.pricingRecommendations.slice(0, 2).map((rec, i) => (
+                      <div key={i} style={{ padding: '0.75rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                        <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{rec.product}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                          ${rec.currentPrice} {'->'} ${rec.suggestedPrice}. {rec.reason}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               

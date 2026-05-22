@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import Topbar from './Topbar';
 import { analyticsAPI } from '../services/api';
 import { Toaster } from 'react-hot-toast';
 
 const Layout = () => {
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('smartstore_theme') === 'dark');
 
   useEffect(() => {
     analyticsAPI.lowStock()
@@ -13,8 +15,13 @@ const Layout = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+    localStorage.setItem('smartstore_theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f8f9fa' }}>
+    <div className="app-shell">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -30,9 +37,12 @@ const Layout = () => {
         }}
       />
       <Sidebar lowStockCount={lowStockCount} />
-      <main style={{ flex: 1, overflowY: 'auto', background: '#f8f9fa' }}>
-        <Outlet />
-      </main>
+      <div className="app-content">
+        <Topbar lowStockCount={lowStockCount} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

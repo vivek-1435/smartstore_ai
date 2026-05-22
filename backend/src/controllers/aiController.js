@@ -1,11 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Product = require("../models/Product");
 
-// Initialize Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 // Helper: call Gemini with error handling
 const callGemini = async (prompt) => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash", // Free-tier model
     generationConfig: {
@@ -15,6 +17,91 @@ const callGemini = async (prompt) => {
   });
   const result = await model.generateContent(prompt);
   return result.response.text().trim();
+};
+
+const money = (value) => Number(value || 0).toFixed(2);
+
+const localDescription = ({ pName, category, price, features, tags, tone }) => {
+  const detail = features || tags?.join(", ") || "quality materials, reliable performance, everyday usefulness";
+  return `Meet ${pName}, a ${tone} choice in ${category || "your store"} built for shoppers who want value without overthinking the decision. At $${money(price)}, it combines ${detail} with a clear, easy-to-understand offer.
+
+Use this product to highlight practical benefits, reduce buyer hesitation, and give customers a confident reason to add it to their cart today.`;
+};
+
+const localTags = ({ pName, category, description }) => {
+  const base = [pName, category, "best seller", "new arrival", "online shopping", "premium", "deal", "gift"]
+    .filter(Boolean)
+    .map((item) => String(item).toLowerCase());
+
+  const words = String(description || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 4)
+    .slice(0, 6);
+
+  return {
+    tags: [...new Set([...base, ...words])].slice(0, 8),
+    seoKeywords: [
+      `buy ${pName} online`,
+      `${category || "product"} deals`,
+      `${pName} price`,
+      `best ${category || "store"} products`,
+      `${pName} for sale`,
+    ],
+    metaTitle: `${pName} | SmartStore AI`,
+    metaDescription: `Shop ${pName} from ${category || "our catalog"} with clear pricing, smart details, and fast product discovery.`,
+  };
+};
+
+const localCaption = ({ pName, category, price, platform }) => ({
+  captions: [
+    {
+      style: "Launch",
+      text: `${pName} is ready for your next ${category || "shopping"} upgrade. Available now for $${money(price)}. Tap through and make it yours.`,
+    },
+    {
+      style: "Value",
+      text: `Smart pick, strong value: ${pName} brings the features customers care about at $${money(price)}. Add it to your cart today.`,
+    },
+    {
+      style: platform || "Social",
+      text: `Fresh in store: ${pName}. Built to stand out, priced to move, and perfect for shoppers browsing ${platform || "social"}.`,
+    },
+  ],
+});
+
+const localSalesInsights = ({ productList, lowStockList, totalRevenue, orders, period }) => {
+  const topProduct = productList[0];
+  const pricingBase = productList.filter((p) => Number(p.price || p.totalRevenue) > 0).slice(0, 2);
+
+  return {
+    summary: `For the last ${period}, the store generated $${money(totalRevenue)} across ${orders || 0} orders. ${topProduct ? `${topProduct.name} is the strongest product signal and should be featured in campaigns.` : "Add sales data to unlock stronger product-level recommendations."}`,
+    trendingInsights: [
+      topProduct ? `${topProduct.name} is leading current product performance.` : "Product performance is still developing.",
+      lowStockList.length ? `${lowStockList.length} product(s) need inventory attention.` : "Inventory risk is currently low.",
+      "Products with AI descriptions and SEO tags are better positioned for discovery.",
+    ],
+    actionItems: [
+      topProduct ? `Promote ${topProduct.name} on the dashboard's best channel.` : "Add more product and sales data.",
+      lowStockList[0] ? `Restock ${lowStockList[0].name} before demand is lost.` : "Review stock thresholds weekly.",
+      "Generate descriptions, SEO tags, and captions for products without AI content.",
+    ],
+    pricingRecommendations: pricingBase.map((p) => {
+      const current = Number(p.price || p.totalRevenue || 0);
+      return {
+        product: p.name,
+        currentPrice: current,
+        suggestedPrice: Math.round(current * 1.05 * 100) / 100,
+        reason: "Test a small price increase while monitoring conversion.",
+      };
+    }),
+    riskAlerts: lowStockList.map((p) => `${p.name} has only ${p.stock} left in stock.`).slice(0, 2),
+    growthOpportunities: [
+      "Bundle top products with slower-moving related items.",
+      "Use platform-specific captions for weekly marketing pushes.",
+    ],
+  };
 };
 
 // Helper: parse JSON safely from Gemini response
@@ -27,6 +114,27 @@ const parseJSON = (raw) => {
     .trim();
   return JSON.parse(cleaned);
 };
+
+const normalizeSalesInsights = (parsed) => ({
+  summary: parsed.summary || "",
+  trendingInsights: Array.isArray(parsed.trendingInsights) ? parsed.trendingInsights : [],
+  actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
+  pricingRecommendations: Array.isArray(parsed.pricingRecommendations)
+    ? parsed.pricingRecommendations.map((item) => {
+        if (typeof item === "string") {
+          return {
+            product: "Store catalog",
+            currentPrice: 0,
+            suggestedPrice: 0,
+            reason: item,
+          };
+        }
+        return item;
+      })
+    : [],
+  riskAlerts: Array.isArray(parsed.riskAlerts) ? parsed.riskAlerts : [],
+  growthOpportunities: Array.isArray(parsed.growthOpportunities) ? parsed.growthOpportunities : [],
+});
 
 // @desc    Generate AI product description
 // @route   POST /api/ai/generate-description
@@ -66,7 +174,13 @@ Write a description that:
 
 Length: 2-3 paragraphs. Do not include a title. Return plain text only.`;
 
-    const description = await callGemini(prompt);
+    let description;
+    try {
+      description = await callGemini(prompt);
+    } catch (error) {
+      console.warn("Using local description fallback:", error.message);
+      description = localDescription({ pName, category, price, features, tags, tone });
+    }
     res.json({ success: true, description, data: { description } });
   } catch (error) {
     console.error("Gemini description error:", error.message);
@@ -108,18 +222,13 @@ Return a JSON object with this exact structure:
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
-    const raw = await callGemini(prompt);
-
     let parsed;
     try {
+      const raw = await callGemini(prompt);
       parsed = parseJSON(raw);
-    } catch {
-      parsed = {
-        tags: [],
-        seoKeywords: [],
-        metaTitle: "",
-        metaDescription: raw,
-      };
+    } catch (error) {
+      console.warn("Using local SEO fallback:", error.message);
+      parsed = localTags({ pName, category, description });
     }
 
     res.json({ success: true, tags: parsed.tags || [], data: parsed });
@@ -178,13 +287,13 @@ Return ONLY this valid JSON structure:
 
 No markdown, no explanation, just the JSON.`;
 
-    const raw = await callGemini(prompt);
-
     let parsed;
     try {
+      const raw = await callGemini(prompt);
       parsed = parseJSON(raw);
-    } catch {
-      parsed = { captions: [{ style: "General", text: raw }] };
+    } catch (error) {
+      console.warn("Using local caption fallback:", error.message);
+      parsed = localCaption({ pName, category, price, platform });
     }
 
     // Also expose caption as flat string for simpler frontend usage
@@ -253,28 +362,25 @@ Provide practical insights in this exact JSON format:
   "summary": "2-3 sentence executive summary of store performance",
   "trendingInsights": ["insight 1", "insight 2", "insight 3"],
   "actionItems": ["action 1", "action 2", "action 3"],
-  "pricingRecommendations": ["recommendation 1", "recommendation 2"],
+  "pricingRecommendations": [
+    {"product": "Product name", "currentPrice": 29.99, "suggestedPrice": 31.49, "reason": "why this price should be tested"}
+  ],
   "riskAlerts": ["alert 1", "alert 2"],
   "growthOpportunities": ["opportunity 1", "opportunity 2"]
 }
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
-    const raw = await callGemini(prompt);
-
     let parsed;
     try {
+      const raw = await callGemini(prompt);
       parsed = parseJSON(raw);
-    } catch {
-      parsed = {
-        summary: raw,
-        trendingInsights: [],
-        actionItems: ["Review your top products", "Restock low inventory"],
-        pricingRecommendations: [],
-        riskAlerts: [],
-        growthOpportunities: [],
-      };
+    } catch (error) {
+      console.warn("Using local sales insights fallback:", error.message);
+      parsed = localSalesInsights({ productList, lowStockList, totalRevenue, orders, period });
     }
+
+    parsed = normalizeSalesInsights(parsed);
 
     // Build a readable insights string for simple display
     const insights = [
@@ -286,7 +392,7 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         ? `\n✅ Action Items:\n${parsed.actionItems.map((i) => `• ${i}`).join("\n")}`
         : "",
       parsed.pricingRecommendations?.length
-        ? `\n💰 Pricing:\n${parsed.pricingRecommendations.map((i) => `• ${i}`).join("\n")}`
+        ? `\n💰 Pricing:\n${parsed.pricingRecommendations.map((i) => `• ${i.product}: $${i.currentPrice} -> $${i.suggestedPrice} (${i.reason})`).join("\n")}`
         : "",
       parsed.riskAlerts?.length
         ? `\n⚠️ Risks:\n${parsed.riskAlerts.map((i) => `• ${i}`).join("\n")}`

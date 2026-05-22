@@ -95,9 +95,9 @@ const AIStudio = () => {
       <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Sparkles size={24} style={{ color: 'var(--g-blue)' }} />
-          AI Studio
+          AI Sales Insights
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Generate AI-powered content for your store</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Generate product content plus pricing, inventory, trend, and sales growth recommendations.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem' }}>
@@ -335,7 +335,7 @@ const AIStudio = () => {
                         <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b06000', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Pricing Recommendations</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                           {result.data.pricingRecommendations.map((r, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyItems: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
                               <div style={{ flex: 1 }}>
                                 <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{r.product}</p>
                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{r.reason}</p>
