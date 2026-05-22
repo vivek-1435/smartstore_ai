@@ -1,0 +1,554 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Plus, Search, Edit2, Trash2, Sparkles, Package, Filter,
+  ChevronUp, ChevronDown, X, Save, AlertTriangle, Image, RefreshCw
+} from 'lucide-react';
+import { productAPI, aiAPI } from '../services/api';
+import toast from 'react-hot-toast';
+
+const CATEGORIES = ['Electronics', 'Clothing', 'Home & Garden', 'Beauty', 'Sports', 'Books', 'Toys', 'Food & Beverage', 'Other'];
+
+const emptyForm = {
+  name: '', description: '', price: '', comparePrice: '', stock: '',
+  lowStockThreshold: 10, category: '', tags: '', imageUrl: '', sku: '', status: 'active',
+};
+
+const ProductModal = ({ product, onClose, onSave }) => {
+  const [form, setForm] = useState(product
+    ? { ...product, tags: (product.tags || []).join(', '), price: product.price || '', stock: product.stock || '' }
+    : emptyForm
+  );
+  const [loading, setLoading] = useState(false);
+  const isEdit = !!product?._id;
+
+  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        ...form,
+        price: parseFloat(form.price),
+        comparePrice: parseFloat(form.comparePrice) || 0,
+        stock: parseInt(form.stock, 10),
+        lowStockThreshold: parseInt(form.lowStockThreshold, 10),
+        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      };
+
+      if (isEdit) {
+        const { data } = await productAPI.update(product._id, payload);
+        onSave(data.data, 'edit');
+        toast.success('Product updated!');
+      } else {
+        const { data } = await productAPI.create(payload);
+        onSave(data.data, 'create');
+        toast.success('Product created!');
+      }
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{isEdit ? 'Edit Product' : 'Add New Product'}</h2>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: '0.5rem', borderRadius: '50%' }}>
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">Product Name *</label>
+              <input name="name" value={form.name} onChange={handleChange} className="input" placeholder="e.g. Wireless Headphones" required />
+            </div>
+            <div>
+              <label className="label">Price *</label>
+              <input type="number" name="price" value={form.price} onChange={handleChange} className="input" placeholder="99.99" step="0.01" min="0" required />
+            </div>
+            <div>
+              <label className="label">Compare Price</label>
+              <input type="number" name="comparePrice" value={form.comparePrice} onChange={handleChange} className="input" placeholder="129.99" step="0.01" min="0" />
+            </div>
+            <div>
+              <label className="label">Stock *</label>
+              <input type="number" name="stock" value={form.stock} onChange={handleChange} className="input" placeholder="50" min="0" required />
+            </div>
+            <div>
+              <label className="label">Low Stock Alert</label>
+              <input type="number" name="lowStockThreshold" value={form.lowStockThreshold} onChange={handleChange} className="input" min="0" />
+            </div>
+            <div>
+              <label className="label">Category *</label>
+              <select name="category" value={form.category} onChange={handleChange} className="input" required>
+                <option value="">Select category</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select name="status" value={form.status} onChange={handleChange} className="input">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">SKU</label>
+              <input name="sku" value={form.sku} onChange={handleChange} className="input" placeholder="WH-001" />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">Image URL</label>
+              <input name="imageUrl" value={form.imageUrl} onChange={handleChange} className="input" placeholder="https://..." />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">Tags (comma separated)</label>
+              <input name="tags" value={form.tags} onChange={handleChange} className="input" placeholder="wireless, audio, premium" />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label className="label">Description</label>
+              <textarea name="description" value={form.description} onChange={handleChange} className="input" rows={3} placeholder="Product description..." />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', paddingTop: '0.5rem', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ minWidth: 120, justifyContent: 'center' }}>
+              {loading ? <div className="spinner" /> : <><Save size={16} />{isEdit ? 'Update' : 'Create'}</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const AIGeneratorModal = ({ product, onClose, onSave }) => {
+  const [activeTab, setActiveTab] = useState('description');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [tone, setTone] = useState('professional');
+  const [platform, setPlatform] = useState('instagram');
+  const [saved, setSaved] = useState(false);
+
+  const generate = async () => {
+    setLoading(true);
+    setSaved(false);
+    try {
+      let res;
+      if (activeTab === 'description') {
+        res = await aiAPI.generateDescription({ productName: product.name, category: product.category, price: product.price, tone });
+        setResult(res.data.data);
+      } else if (activeTab === 'tags') {
+        res = await aiAPI.generateTags({ productName: product.name, category: product.category, description: product.description });
+        setResult(res.data.data);
+      } else if (activeTab === 'caption') {
+        res = await aiAPI.generateCaption({ productName: product.name, category: product.category, price: product.price, platform });
+        setResult(res.data.data);
+      }
+      toast.success('AI content generated!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'AI generation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveToProduct = async () => {
+    if (!result) return;
+    try {
+      const saveData = {};
+      if (activeTab === 'description') saveData.aiDescription = result.description;
+      if (activeTab === 'tags') { saveData.tags = result.tags; saveData.seoKeywords = result.seoKeywords; }
+      if (activeTab === 'caption') saveData.aiCaption = result.captions?.[0]?.text;
+
+      await aiAPI.saveContent(product._id, saveData);
+      onSave && onSave();
+      setSaved(true);
+      toast.success('Saved to product!');
+    } catch {
+      toast.error('Failed to save content');
+    }
+  };
+
+  const tabs = ['description', 'tags', 'caption'];
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 660 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={20} style={{ color: 'var(--g-blue)' }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>AI Content Generator</h2>
+          </div>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: '0.5rem', borderRadius: '50%' }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Product context */}
+          <div style={{ padding: '1rem', borderRadius: '12px', background: 'var(--surface-alt)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Package size={20} style={{ color: 'var(--g-blue)' }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>{product.name}</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{product.category} • ${product.price}</p>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--surface-alt)', padding: '0.25rem', borderRadius: '8px' }}>
+            {tabs.map(t => (
+              <button
+                key={t}
+                onClick={() => { setActiveTab(t); setResult(null); }}
+                style={{
+                  flex: 1, padding: '0.5rem 0', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, textTransform: 'capitalize', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                  background: activeTab === t ? 'var(--surface)' : 'transparent',
+                  color: activeTab === t ? 'var(--g-blue)' : 'var(--text-secondary)',
+                  boxShadow: activeTab === t ? 'var(--shadow-sm)' : 'none',
+                }}
+              >
+                {t === 'description' ? '📝 Description' : t === 'tags' ? '🏷️ SEO Tags' : '📣 Caption'}
+              </button>
+            ))}
+          </div>
+
+          {/* Options */}
+          {activeTab === 'description' && (
+            <div>
+              <label className="label">Writing Tone</label>
+              <select value={tone} onChange={e => setTone(e.target.value)} className="input">
+                {['professional', 'casual', 'luxury', 'playful', 'technical'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+              </select>
+            </div>
+          )}
+          {activeTab === 'caption' && (
+            <div>
+              <label className="label">Platform</label>
+              <select value={platform} onChange={e => setPlatform(e.target.value)} className="input">
+                {['instagram', 'twitter', 'facebook', 'linkedin', 'tiktok'].map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+            </div>
+          )}
+
+          <button onClick={generate} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', fontSize: '0.9rem' }} disabled={loading}>
+            {loading ? <><div className="spinner" /> Generating...</> : <><Sparkles size={16} /> Generate with AI</>}
+          </button>
+
+          {/* Result */}
+          {result && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="ai-result">
+                {activeTab === 'description' && (
+                  <p style={{ whiteSpace: 'pre-line' }}>{result.description}</p>
+                )}
+                {activeTab === 'tags' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--g-blue)', fontWeight: 700, marginBottom: '0.5rem' }}>Product Tags</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {result.tags?.map(t => <span key={t} className="chip">{t}</span>)}
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--g-green)', fontWeight: 700, marginBottom: '0.5rem' }}>SEO Keywords</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {result.seoKeywords?.map(k => <span key={k} className="chip" style={{ background: 'var(--g-green-light)', color: 'var(--g-green)', borderColor: 'rgba(52,168,83,0.3)' }}>{k}</span>)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'caption' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {result.captions?.map((c, i) => (
+                      <div key={i} style={{ background: 'var(--surface)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <span className="badge badge-info" style={{ marginBottom: '0.5rem' }}>{c.style}</span>
+                        <p style={{ whiteSpace: 'pre-line', fontSize: '0.9rem' }}>{c.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {product._id && (
+                <button onClick={saveToProduct} className={`btn ${saved ? 'btn-success' : 'btn-secondary'}`} style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }} disabled={saved}>
+                  {saved ? '✓ Saved to Product' : <><Save size={16} /> Save to Product</>}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Products = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState(-1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+  const [aiProduct, setAiProduct] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (categoryFilter) params.category = categoryFilter;
+      if (statusFilter) params.status = statusFilter;
+      if (search) params.search = search;
+      params.sort = `${sortDir === -1 ? '-' : ''}${sortField}`;
+
+      const { data } = await productAPI.getAll(params);
+      setProducts(data.data || []);
+    } catch {
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, categoryFilter, statusFilter, sortField, sortDir]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchProducts, 300);
+    return () => clearTimeout(timer);
+  }, [fetchProducts]);
+
+  const handleDelete = async (id) => {
+    try {
+      await productAPI.delete(id);
+      setProducts(prev => prev.filter(p => p._id !== id));
+      setDeleteConfirm(null);
+      toast.success('Product deleted');
+    } catch {
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleSave = (product, mode) => {
+    if (mode === 'create') setProducts(prev => [product, ...prev]);
+    else setProducts(prev => prev.map(p => p._id === product._id ? product : p));
+  };
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d * -1);
+    else { setSortField(field); setSortDir(-1); }
+  };
+
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) return <ChevronUp size={14} style={{ color: 'var(--border)' }} />;
+    return sortDir === -1 ? <ChevronDown size={14} style={{ color: 'var(--g-blue)' }} /> : <ChevronUp size={14} style={{ color: 'var(--g-blue)' }} />;
+  };
+
+  const getStatusBadge = (status) => {
+    const map = { active: 'badge-success', inactive: 'badge-warning', archived: 'badge-neutral' };
+    return `badge ${map[status] || 'badge-info'}`;
+  };
+
+  const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+  const lowStockCount = products.filter(p => p.isLowStock).length;
+
+  return (
+    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Header */}
+      <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Products</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {products.length} products • ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0 })} inventory
+              {lowStockCount > 0 && <span className="badge badge-warning">⚠️ {lowStockCount} low stock</span>}
+            </p>
+          </div>
+          <button onClick={() => { setEditProduct(null); setModalOpen(true); }} className="btn btn-primary">
+            <Plus size={16} /> Add Product
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 240px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input"
+            style={{ paddingLeft: '2.5rem' }}
+          />
+        </div>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input" style={{ width: 'auto', minWidth: 160 }}>
+          <option value="">All Categories</option>
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input" style={{ width: 'auto', minWidth: 140 }}>
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="archived">Archived</option>
+        </select>
+        {(search || categoryFilter || statusFilter) && (
+          <button onClick={() => { setSearch(''); setCategoryFilter(''); setStatusFilter(''); }} className="btn btn-ghost" style={{ padding: '0.5rem 0.75rem' }}>
+            <X size={16} /> Clear
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('category')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Category <SortIcon field="category" /></div>
+                </th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('price')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Price <SortIcon field="price" /></div>
+                </th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('stock')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>Stock <SortIcon field="stock" /></div>
+                </th>
+                <th>Sales</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array(6).fill(0).map((_, i) => (
+                  <tr key={i}>
+                    {Array(7).fill(0).map((_, j) => (
+                      <td key={j}><div style={{ height: 16, width: j===0 ? 120 : 60, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="empty-state">
+                      <Package size={48} style={{ color: 'var(--text-muted)' }} />
+                      <p style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>No products found</p>
+                      <p style={{ fontSize: '0.875rem' }}>Add your first product to start selling.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                products.map(product => (
+                  <tr key={product._id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Image size={20} style={{ color: 'var(--text-muted)' }} />
+                          )}
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{product.name}</p>
+                          {product.sku && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>SKU: {product.sku}</p>}
+                          {product.aiDescription && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', color: 'var(--g-blue)', marginTop: '0.125rem', fontWeight: 600 }}>
+                              <Sparkles size={10} /> AI Enhanced
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="chip">{product.category}</span>
+                    </td>
+                    <td>
+                      <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>${product.price?.toFixed(2)}</p>
+                      {product.comparePrice > product.price && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'line-through' }}>${product.comparePrice?.toFixed(2)}</p>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        {product.isLowStock && <AlertTriangle size={14} style={{ color: 'var(--g-yellow)' }} />}
+                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: product.isLowStock ? 'var(--g-yellow)' : product.stock === 0 ? 'var(--g-red)' : 'var(--text-primary)' }}>
+                          {product.stock}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{product.totalSales || 0}</p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>${(product.totalRevenue || 0).toLocaleString()}</p>
+                    </td>
+                    <td>
+                      <span className={getStatusBadge(product.status)}>{product.status}</span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <button onClick={() => setAiProduct(product)} className="btn-ghost" style={{ padding: '0.375rem', borderRadius: 8, color: 'var(--g-blue)' }} data-tooltip="AI Enhance">
+                          <Sparkles size={16} />
+                        </button>
+                        <button onClick={() => { setEditProduct(product); setModalOpen(true); }} className="btn-ghost" style={{ padding: '0.375rem', borderRadius: 8 }} data-tooltip="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => setDeleteConfirm(product._id)} className="btn-ghost" style={{ padding: '0.375rem', borderRadius: 8, color: 'var(--g-red)' }} data-tooltip="Delete">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {modalOpen && (
+        <ProductModal
+          product={editProduct}
+          onClose={() => { setModalOpen(false); setEditProduct(null); }}
+          onSave={handleSave}
+        />
+      )}
+      {aiProduct && (
+        <AIGeneratorModal
+          product={aiProduct}
+          onClose={() => setAiProduct(null)}
+          onSave={fetchProducts}
+        />
+      )}
+      {deleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: 400, padding: '2rem', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--g-red-light)', color: 'var(--g-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>Delete Product?</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '2rem' }}>This action cannot be undone. Are you sure you want to remove this product?</p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setDeleteConfirm(null)} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Products;
