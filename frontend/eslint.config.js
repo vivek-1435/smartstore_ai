@@ -7,12 +7,6 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores([
     'dist',
-    'src/pages/AIContentPage.jsx',
-    'src/pages/AnalyticsPage.jsx',
-    'src/pages/DashboardPage.jsx',
-    'src/pages/LoginPage.jsx',
-    'src/pages/ProductsPage.jsx',
-    'src/pages/RegisterPage.jsx',
   ]),
   {
     files: ['**/*.{js,jsx}'],

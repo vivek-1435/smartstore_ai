@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import AuthPage from './pages/AuthPage';
@@ -15,6 +16,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <Routes>
           <Route path="/login" element={<AuthPage />} />
           <Route

@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const {
   getOrders, getCustomers, createSale,
-  updateSale, deleteSale,
+  updateSale, deleteSale, deleteAllOrders,
   previewMapping, bulkImportSales, downloadTemplate,
 } = require('../controllers/salesController');
 const { protect } = require('../middleware/auth');
@@ -32,6 +32,7 @@ const upload = multer({
 router.use(protect);
 
 router.get('/orders', getOrders);
+router.delete('/orders', deleteAllOrders); // Mount above /:id to prevent shadowing
 router.get('/customers', getCustomers);
 router.get('/template', downloadTemplate);
 router.post('/', createSale);

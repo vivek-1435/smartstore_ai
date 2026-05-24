@@ -421,7 +421,7 @@ const Dashboard = () => {
             <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
               AI Sales Insights
             </h3>
-            <span className="badge badge-info" style={{ marginLeft: 'auto' }}>Gemini Pro</span>
+            <span className="badge badge-info" style={{ marginLeft: 'auto' }}>Xtore Boy</span>
           </div>
 
           {!aiInsights ? (

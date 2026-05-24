@@ -117,6 +117,18 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Delete all products
+// @route   DELETE /api/products
+const deleteAllProducts = async (req, res) => {
+  try {
+    await Product.deleteMany({ createdBy: req.user._id });
+    res.json({ success: true, message: 'All products deleted successfully!' });
+  } catch (error) {
+    console.error('Delete all products error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete products.' });
+  }
+};
+
 // @desc    Get categories summary
 // @route   GET /api/products/categories
 const getCategories = async (req, res) => {
@@ -132,4 +144,4 @@ const getCategories = async (req, res) => {
   }
 };
 
-module.exports = { getProducts, getProduct, createProduct, updateProduct, deleteProduct, getCategories };
+module.exports = { getProducts, getProduct, createProduct, updateProduct, deleteProduct, deleteAllProducts, getCategories };

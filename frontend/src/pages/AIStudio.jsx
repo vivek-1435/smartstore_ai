@@ -253,7 +253,7 @@ const AIStudio = () => {
                   {activeFeature !== 'insights' ? 'Select a product and feature, then click Generate Now' : 'Click Generate Now to analyze your store data'}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginTop: '1.5rem' }}>
-                  {['Gemini Pro', 'SEO Optimized', 'Multi-Platform'].map(tag => (
+                  {['Xtore Boy', 'SEO Optimized', 'Multi-Platform'].map(tag => (
                     <span key={tag} className="badge badge-info">{tag}</span>
                   ))}
                 </div>

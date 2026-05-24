@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     localStorage.removeItem('smartstore_token');
     localStorage.removeItem('smartstore_user');
+    localStorage.removeItem('smartstore_temp_token');
     setToken(null);
     setUser(null);
   }, []);
@@ -43,6 +44,24 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
+  const loginPreCheck = useCallback(async (email, password) => {
+    const { data } = await authAPI.login({ email, password });
+    localStorage.setItem('smartstore_temp_token', data.token);
+    return data;
+  }, []);
+
+  const loginCommit = useCallback((data) => {
+    localStorage.setItem('smartstore_token', data.token);
+    localStorage.setItem('smartstore_user', JSON.stringify(data.user));
+    localStorage.removeItem('smartstore_temp_token');
+    setToken(data.token);
+    setUser(data.user);
+  }, []);
+
+  const loginAbort = useCallback(() => {
+    localStorage.removeItem('smartstore_temp_token');
+  }, []);
+
   const register = useCallback(async (formData) => {
     const { data } = await authAPI.register(formData);
     localStorage.setItem('smartstore_token', data.token);
@@ -59,8 +78,16 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
+  const updateLocalUser = useCallback((updates) => {
+    setUser(prev => {
+      const newUser = { ...prev, ...updates };
+      localStorage.setItem('smartstore_user', JSON.stringify(newUser));
+      return newUser;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, updateLocalUser, loginPreCheck, loginCommit, loginAbort }}>
       {children}
     </AuthContext.Provider>
   );

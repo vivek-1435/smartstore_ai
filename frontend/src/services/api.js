@@ -7,7 +7,7 @@ const API = axios.create({
 
 // Attach JWT to every request
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('smartstore_token');
+  const token = localStorage.getItem('smartstore_token') || localStorage.getItem('smartstore_temp_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -19,6 +19,7 @@ API.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('smartstore_token');
       localStorage.removeItem('smartstore_user');
+      localStorage.removeItem('smartstore_temp_token');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -31,6 +32,12 @@ export const authAPI = {
   login: (data) => API.post('/auth/login', data),
   me: () => API.get('/auth/me'),
   updateMe: (data) => API.put('/auth/me', data),
+  saveFace: (data) => API.post('/auth/face', data),
+  removeFace: () => API.delete('/auth/face'),
+  getFace: () => API.get('/auth/face'),
+  sendOTP: () => API.post('/auth/send-otp'),
+  verifyOTP: (data) => API.post('/auth/verify-otp', data),
+  verifyPassword: (data) => API.post('/auth/verify-password', data),
 };
 
 // Products
@@ -40,6 +47,7 @@ export const productAPI = {
   create: (data) => API.post('/products', data),
   update: (id, data) => API.put(`/products/${id}`, data),
   delete: (id) => API.delete(`/products/${id}`),
+  deleteAll: () => API.delete('/products'),
   getCategories: () => API.get('/products/categories'),
 };
 
@@ -69,6 +77,7 @@ export const salesAPI = {
   create: (data) => API.post('/sales', data),
   update: (id, data) => API.put(`/sales/${id}`, data),
   delete: (id) => API.delete(`/sales/${id}`),
+  deleteAll: () => API.delete('/sales/orders'),
   previewMapping: (file) => {
     const form = new FormData();
     form.append('file', file);

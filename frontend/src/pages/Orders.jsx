@@ -3,6 +3,8 @@ import { CalendarClock, Edit2, Package, Plus, RefreshCw, Save, Search, ShoppingB
 import toast from 'react-hot-toast';
 import { salesAPI } from '../services/api';
 import AddSaleModal from '../components/AddSaleModal';
+import { useAuth } from '../context/AuthContext';
+import VerificationModal from '../components/VerificationModal';
 
 const statusClass = {
   completed: 'badge-success',
@@ -32,7 +34,10 @@ const saleToEditForm = (sale) => ({
 });
 
 const Orders = () => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [showMfaDelete, setShowMfaDelete] = useState(false);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -53,6 +58,20 @@ const Orders = () => {
       setLoading(false);
     }
   }, [search, status, channel]);
+
+  const executeDeleteAll = async () => {
+    setLoading(true);
+    try {
+      await salesAPI.deleteAll();
+      setOrders([]);
+      toast.success('All orders deleted successfully');
+    } catch {
+      toast.error('Failed to delete all orders');
+    } finally {
+      setLoading(false);
+      setDeleteAllConfirm(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(fetchOrders, 250);
@@ -130,13 +149,24 @@ const Orders = () => {
             <strong>{orders.length}</strong>
             <span>orders shown</span>
           </div>
-          <button
-            onClick={() => setSaleModalOpen(true)}
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
-          >
-            <Plus size={16} /> Add Sale
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', marginLeft: 'auto' }}>
+            {orders.length > 0 && (
+              <button
+                onClick={() => setDeleteAllConfirm(true)}
+                className="btn btn-danger"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', whiteSpace: 'nowrap' }}
+              >
+                <Trash2 size={16} /> Delete All
+              </button>
+            )}
+            <button
+              onClick={() => setSaleModalOpen(true)}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+            >
+              <Plus size={16} /> Add Sale
+            </button>
+          </div>
         </div>
       </section>
 
@@ -349,6 +379,32 @@ const Orders = () => {
           </table>
         </div>
       </section>
+      {deleteAllConfirm && (
+        <div className="modal-overlay" style={{ zIndex: 999 }}>
+          <div className="modal-box" style={{ maxWidth: 400, padding: '2rem', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--g-red-light)', color: 'var(--g-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>Delete ALL Orders?</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '2.5rem' }}>
+              Are you sure you want to delete the **entire orders dataset**? This will reset all product sales statistics and **requires MFA verification**.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setDeleteAllConfirm(false)} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+              <button onClick={() => { setDeleteAllConfirm(false); setShowMfaDelete(true); }} className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }}>Verify & Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <VerificationModal
+        isOpen={showMfaDelete}
+        onClose={() => setShowMfaDelete(false)}
+        onSuccess={() => {
+          setShowMfaDelete(false);
+          executeDeleteAll();
+        }}
+        user={user}
+      />
     </div>
   );
 };

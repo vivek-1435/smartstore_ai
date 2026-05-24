@@ -6,8 +6,24 @@ const Product = require('../models/Product');
 const Sale = require('../models/Sale');
 
 const connectDB = async () => {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log('✅ Connected to MongoDB for seeding');
+  const primaryUri = process.env.MONGODB_URI;
+  const fallbackUri = 'mongodb://127.0.0.1:27017/smartstore';
+  
+  try {
+    await mongoose.connect(primaryUri, { serverSelectionTimeoutMS: 2000 });
+    console.log('✅ Connected to Primary MongoDB for seeding');
+  } catch (error) {
+    console.warn(`⚠️ Primary MongoDB connection failed: ${error.message}`);
+    console.log(`🔌 Attempting seeding fallback to local MongoDB: ${fallbackUri}`);
+    try {
+      await mongoose.disconnect();
+      await mongoose.connect(fallbackUri, { serverSelectionTimeoutMS: 2000 });
+      console.log('✅ Connected to Local MongoDB for seeding');
+    } catch (fallbackError) {
+      console.error(`❌ Seeding fallback connection failed: ${fallbackError.message}`);
+      process.exit(1);
+    }
+  }
 };
 
 const categories = ['Electronics', 'Clothing', 'Home & Garden', 'Beauty', 'Sports', 'Books', 'Toys', 'Food & Beverage'];

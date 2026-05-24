@@ -1,28 +1,39 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Bell,
   Camera,
   CheckCircle2,
-  Clock,
   KeyRound,
-  Mail,
   Save,
   ShieldCheck,
   User,
+  ScanFace,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { authAPI } from '../services/api';
+import VerificationModal from '../components/VerificationModal';
+import Webcam from 'react-webcam';
+import { loadFaceApiModels, getFaceEmbeddingFromVideo } from '../utils/faceApi';
 
 const AccountProfile = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateLocalUser } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'saveProfile', 'updateFace', 'removeFace'
+  
+  const [showFaceCapture, setShowFaceCapture] = useState(false);
+  const [faceLoading, setFaceLoading] = useState(false);
+  const webcamRef = useRef(null);
+
   const [form, setForm] = useState(() => {
     const saved = JSON.parse(localStorage.getItem('smartstore_account_preferences') || '{}');
     return {
       name: user?.name || '',
       email: user?.email || '',
       avatar: user?.avatar || '',
-      phone: saved.phone || '',
+      phone: user?.mobileNumber || saved.phone || '',
       role: user?.role || 'admin',
       timezone: saved.timezone || 'Asia/Kolkata',
       alerts: {
@@ -40,13 +51,13 @@ const AccountProfile = () => {
 
   const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
-  const saveProfile = async (event) => {
-    event.preventDefault();
+  const executeSaveProfile = async () => {
     setSaving(true);
     try {
       await updateProfile({
         name: form.name,
         avatar: form.avatar,
+        mobileNumber: form.phone, // Send the updated mobile number
       });
       localStorage.setItem('smartstore_account_preferences', JSON.stringify({
         phone: form.phone,
@@ -58,6 +69,57 @@ const AccountProfile = () => {
       toast.error(error.response?.data?.message || 'Could not update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const executeRemoveFace = async () => {
+    setSaving(true);
+    try {
+      await authAPI.removeFace();
+      updateLocalUser({ hasFaceRegistered: false });
+      toast.success('Face authentication removed');
+    } catch (err) {
+      console.error('Remove face auth error:', err);
+      toast.error('Failed to remove face auth');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleActionRequest = (action) => {
+    setPendingAction(action);
+    setShowVerification(true);
+  };
+
+  const onVerificationSuccess = () => {
+    setShowVerification(false);
+    if (pendingAction === 'saveProfile') executeSaveProfile();
+    if (pendingAction === 'removeFace') executeRemoveFace();
+    if (pendingAction === 'updateFace') {
+      setShowFaceCapture(true);
+      loadFaceApiModels();
+    }
+  };
+
+  const captureNewFace = async () => {
+    if (!webcamRef.current?.video) return;
+    setFaceLoading(true);
+    try {
+      const embedding = await getFaceEmbeddingFromVideo(webcamRef.current.video);
+      if (!embedding) {
+        toast.error('No face detected.');
+        setFaceLoading(false);
+        return;
+      }
+      await authAPI.saveFace({ faceEmbedding: embedding });
+      updateLocalUser({ hasFaceRegistered: true });
+      toast.success('New face registered successfully!');
+      setShowFaceCapture(false);
+    } catch (err) {
+      console.error('Capture face save error:', err);
+      toast.error('Failed to save face.');
+    } finally {
+      setFaceLoading(false);
     }
   };
 
@@ -79,7 +141,7 @@ const AccountProfile = () => {
       </section>
 
       <div className="settings-grid">
-        <form onSubmit={saveProfile} className="card settings-card span-2">
+        <form onSubmit={(e) => { e.preventDefault(); handleActionRequest('saveProfile'); }} className="card settings-card span-2">
           <div className="settings-card-header">
             <div>
               <h3>Profile information</h3>
@@ -98,8 +160,8 @@ const AccountProfile = () => {
               <input className="input" value={form.email} disabled />
             </label>
             <label>
-              <span className="label">Phone number</span>
-              <input className="input" placeholder="+91 98765 43210" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
+              <span className="label">Mobile number (for OTP)</span>
+              <input className="input" placeholder="+1234567890" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} />
             </label>
             <label>
               <span className="label">Role</span>
@@ -107,15 +169,6 @@ const AccountProfile = () => {
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
                 <option value="viewer">Viewer</option>
-              </select>
-            </label>
-            <label>
-              <span className="label">Timezone</span>
-              <select className="input" value={form.timezone} onChange={(event) => updateField('timezone', event.target.value)}>
-                <option value="Asia/Kolkata">Asia/Kolkata</option>
-                <option value="America/New_York">America/New_York</option>
-                <option value="Europe/London">Europe/London</option>
-                <option value="Asia/Dubai">Asia/Dubai</option>
               </select>
             </label>
             <label className="span-2">
@@ -130,7 +183,7 @@ const AccountProfile = () => {
           <div className="settings-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <div className="spinner" /> : <Save size={16} />}
-              Save profile
+              Save profile (Requires MFA)
             </button>
           </div>
         </form>
@@ -138,12 +191,17 @@ const AccountProfile = () => {
         <section className="card settings-card">
           <div className="settings-card-header">
             <div>
-              <h3>Security</h3>
-              <p>Protect access to your commerce data.</p>
+              <h3>Security & MFA</h3>
+              <p>Manage Face Authentication and Multi-Factor settings.</p>
             </div>
             <ShieldCheck size={20} />
           </div>
-          <div className="settings-list">
+          <div className="settings-list" style={{ marginBottom: '1.5rem' }}>
+            <div>
+              <ScanFace size={17} style={{ color: user?.hasFaceRegistered ? 'var(--g-green)' : 'var(--text-muted)' }} />
+              <span>Face Authentication</span>
+              <strong>{user?.hasFaceRegistered ? 'Active' : 'Not Setup'}</strong>
+            </div>
             <div>
               <KeyRound size={17} />
               <span>Password security</span>
@@ -151,15 +209,41 @@ const AccountProfile = () => {
             </div>
             <div>
               <CheckCircle2 size={17} />
-              <span>Two-factor authentication</span>
-              <strong>Ready</strong>
-            </div>
-            <div>
-              <Clock size={17} />
-              <span>Active session</span>
-              <strong>Current browser</strong>
+              <span>SMS OTP</span>
+              <strong>{user?.mobileNumber ? 'Ready' : 'Missing Number'}</strong>
             </div>
           </div>
+
+          {showFaceCapture ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', background: '#000', borderRadius: 8, overflow: 'hidden' }}>
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{ facingMode: "user" }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                <button className="btn btn-secondary" onClick={() => setShowFaceCapture(false)} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+                <button className="btn btn-primary" onClick={captureNewFace} disabled={faceLoading} style={{ flex: 1, justifyContent: 'center' }}>
+                  {faceLoading ? <div className="spinner" /> : 'Save New Face'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => handleActionRequest('updateFace')} style={{ flex: 1, justifyContent: 'center' }}>
+                <Camera size={16} /> {user?.hasFaceRegistered ? 'Update Face' : 'Setup Face'}
+              </button>
+              {user?.hasFaceRegistered && (
+                <button className="btn btn-danger" onClick={() => handleActionRequest('removeFace')} style={{ flex: 1, justifyContent: 'center' }}>
+                  <Trash2 size={16} /> Remove
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="card settings-card">
@@ -173,15 +257,16 @@ const AccountProfile = () => {
           <div className="toggle-list">
             <label><input type="checkbox" checked={form.alerts.sales} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, sales: event.target.checked } }))} /> Sales alerts</label>
             <label><input type="checkbox" checked={form.alerts.inventory} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, inventory: event.target.checked } }))} /> Low inventory alerts</label>
-            <label><input type="checkbox" checked={form.alerts.weekly} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, weekly: event.target.checked } }))} /> Weekly executive summary</label>
-            <label><input type="checkbox" checked={form.alerts.ai} onChange={(event) => setForm(current => ({ ...current, alerts: { ...current.alerts, ai: event.target.checked } }))} /> AI recommendation emails</label>
-          </div>
-          <div className="mini-note">
-            <Mail size={16} />
-            Notifications are sent to {form.email || 'your account email'}.
           </div>
         </section>
       </div>
+
+      <VerificationModal 
+        isOpen={showVerification} 
+        onClose={() => { setShowVerification(false); setPendingAction(null); }} 
+        onSuccess={onVerificationSuccess} 
+        user={user} 
+      />
     </div>
   );
 };

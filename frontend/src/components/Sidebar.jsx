@@ -100,7 +100,7 @@ const Sidebar = ({ lowStockCount = 0, mobileOpen = false, onMobileClose }) => {
         {!collapsed && (
           <div className="sidebar-insight">
             <Sparkles size={16} />
-            <p>Open AI Insights to generate recommendations from your current products and sales data.</p>
+            <p>Xtore Boy Insights to generate recommendations from your current products and sales data.</p>
           </div>
         )}
 

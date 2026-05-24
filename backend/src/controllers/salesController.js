@@ -771,12 +771,30 @@ const downloadTemplate = (req, res) => {
   res.send(buffer);
 };
 
+// @desc    Delete all sales records
+// @route   DELETE /api/sales/orders
+const deleteAllOrders = async (req, res) => {
+  try {
+    await Sale.deleteMany({ createdBy: req.user._id });
+    // Reset product sales and revenue stats back to 0 to maintain analytics consistency
+    await Product.updateMany(
+      { createdBy: req.user._id },
+      { $set: { totalSales: 0, totalRevenue: 0 } }
+    );
+    res.json({ success: true, message: 'All orders deleted and product sales statistics reset successfully!' });
+  } catch (error) {
+    console.error('Delete all orders error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete orders.' });
+  }
+};
+
 module.exports = {
   getOrders,
   getCustomers,
   createSale,
   updateSale,
   deleteSale,
+  deleteAllOrders,
   previewMapping,
   bulkImportSales,
   downloadTemplate,

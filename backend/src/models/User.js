@@ -40,6 +40,31 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    mobileNumber: {
+      type: String,
+      required: false,
+    },
+    faceEmbedding: {
+      type: [Number],
+      required: false,
+      default: [],
+    },
+    otpHash: {
+      type: String,
+      required: false,
+    },
+    otpExpiry: {
+      type: Date,
+      required: false,
+    },
+    failedAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockoutUntil: {
+      type: Date,
+      required: false,
+    },
   },
   { timestamps: true }
 );

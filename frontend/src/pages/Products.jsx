@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { productAPI, aiAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import VerificationModal from '../components/VerificationModal';
 
 const CATEGORIES = ['Electronics', 'Clothing', 'Home & Garden', 'Beauty', 'Sports', 'Books', 'Toys', 'Food & Beverage', 'Other'];
 
@@ -428,10 +430,13 @@ const AIGeneratorModal = ({ product, onClose, onSave }) => {
 };
 
 const Products = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search);
   const [products, setProducts] = useState([]);
+  const [showMfaDelete, setShowMfaDelete] = useState(false);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(() => query.get('search') || '');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -462,6 +467,18 @@ const Products = () => {
       setLoading(false);
     }
   }, [search, categoryFilter, statusFilter, sortField, sortDir]);
+
+  const executeDeleteAll = async () => {
+    try {
+      await productAPI.deleteAll();
+      setProducts([]);
+      toast.success('All products deleted successfully');
+    } catch {
+      toast.error('Failed to delete all products');
+    } finally {
+      setDeleteAllConfirm(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(fetchProducts, 300);
@@ -526,7 +543,12 @@ const Products = () => {
               {lowStockCount > 0 && <span className="badge badge-warning">⚠️ {lowStockCount} low stock</span>}
             </p>
           </div>
-          <div className="page-header-controls">
+          <div className="page-header-controls" style={{ display: 'flex', gap: '0.75rem' }}>
+            {products.length > 0 && (
+              <button onClick={() => setDeleteAllConfirm(true)} className="btn btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <Trash2 size={16} /> Delete All
+              </button>
+            )}
             <button onClick={() => { setEditProduct(null); setModalOpen(true); }} className="btn btn-primary">
               <Plus size={16} /> Add Product
             </button>
@@ -792,6 +814,32 @@ const Products = () => {
           </div>
         </div>
       )}
+      {deleteAllConfirm && (
+        <div className="modal-overlay" style={{ zIndex: 999 }}>
+          <div className="modal-box" style={{ maxWidth: 400, padding: '2rem', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--g-red-light)', color: 'var(--g-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>Delete ALL Products?</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '2.5rem' }}>
+              Are you sure you want to delete the **entire products dataset**? This action cannot be undone and **requires MFA verification**.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setDeleteAllConfirm(false)} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+              <button onClick={() => { setDeleteAllConfirm(false); setShowMfaDelete(true); }} className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }}>Verify & Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <VerificationModal
+        isOpen={showMfaDelete}
+        onClose={() => setShowMfaDelete(false)}
+        onSuccess={() => {
+          setShowMfaDelete(false);
+          executeDeleteAll();
+        }}
+        user={user}
+      />
     </div>
   );
 };
