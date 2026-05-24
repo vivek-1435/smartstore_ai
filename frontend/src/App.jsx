@@ -10,7 +10,6 @@ import Analytics from './pages/Analytics';
 import AccountProfile from './pages/AccountProfile';
 import StoreSettings from './pages/StoreSettings';
 import Orders from './pages/Orders';
-import Customers from './pages/Customers';
 
 const App = () => {
   return (
@@ -34,7 +33,6 @@ const App = () => {
             <Route path="ai-insights" element={<AIStudio />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="orders" element={<Orders />} />
-            <Route path="customers" element={<Customers />} />
             <Route path="profile" element={<AccountProfile />} />
             <Route path="settings" element={<StoreSettings />} />
           </Route>

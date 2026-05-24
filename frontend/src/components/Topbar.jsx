@@ -5,7 +5,6 @@ import {
   ChevronDown,
   LogOut,
   Moon,
-  PackagePlus,
   Search,
   Settings,
   Store,
@@ -22,7 +21,6 @@ const pageMeta = {
   '/ai-insights': ['AI Sales Insights', 'Pricing, inventory, trend predictions, and sales advice'],
   '/analytics': ['Analytics', 'Track revenue trends, channels, categories, and product movement'],
   '/orders': ['Orders', 'Monitor fulfillment, revenue, and order activity'],
-  '/customers': ['Customers', 'Understand buyers, loyalty, and customer value'],
   '/profile': ['Account Profile', 'Manage your identity, contact details, access, and preferences'],
   '/settings': ['Settings', 'Configure your store workspace and preferences'],
 };
@@ -68,7 +66,7 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
         <div className="topbar-search">
           <Search size={16} />
           <input
-            placeholder="Search products, orders, customers..."
+            placeholder="Search products or orders..."
             onKeyDown={(event) => {
               const value = event.currentTarget.value.trim();
               if (event.key === 'Enter' && value) navigate(`/products?search=${encodeURIComponent(value)}`);
@@ -76,10 +74,6 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
           />
         </div>
 
-        <Link to="/add-product" className="icon-text-button">
-          <PackagePlus size={16} />
-          <span>Add Product</span>
-        </Link>
 
         <button type="button" onClick={onToggleDarkMode} className="icon-button" data-tooltip={darkMode ? 'Light mode' : 'Dark mode'}>
           {darkMode ? <Sun size={17} /> : <Moon size={17} />}

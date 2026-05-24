@@ -8,12 +8,9 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
-  PackagePlus,
-  Settings,
   ShoppingBag,
   Sparkles,
   Store,
-  Users,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -21,12 +18,9 @@ import toast from 'react-hot-toast';
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', end: true },
   { icon: Package, label: 'Products', path: '/products', badgeKey: 'lowStock' },
-  { icon: PackagePlus, label: 'Add Product', path: '/add-product' },
   { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: Bot, label: 'AI Insights', path: '/ai-insights' },
   { icon: ShoppingBag, label: 'Orders', path: '/orders' },
-  { icon: Users, label: 'Customers', path: '/customers' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 const Sidebar = ({ lowStockCount = 0 }) => {

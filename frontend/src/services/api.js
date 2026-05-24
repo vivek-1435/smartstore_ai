@@ -49,6 +49,7 @@ export const aiAPI = {
   generateTags: (data) => API.post('/ai/generate-tags', data),
   generateCaption: (data) => API.post('/ai/generate-caption', data),
   salesInsights: (data) => API.post('/ai/sales-insights', data),
+  dataAnalyst: (data) => API.post('/ai/data-analyst', data),
   saveContent: (productId, data) => API.put(`/ai/save/${productId}`, data),
 };
 
@@ -62,10 +63,31 @@ export const analyticsAPI = {
   lowStock: () => API.get('/analytics/low-stock'),
 };
 
-// Sales / Customers
+// Sales
 export const salesAPI = {
   orders: (params) => API.get('/sales/orders', { params }),
-  customers: (params) => API.get('/sales/customers', { params }),
+  create: (data) => API.post('/sales', data),
+  update: (id, data) => API.put(`/sales/${id}`, data),
+  delete: (id) => API.delete(`/sales/${id}`),
+  previewMapping: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return API.post('/sales/preview-mapping', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
+  bulkImport: (file, mapping) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (mapping) form.append('mapping', JSON.stringify(mapping));
+    return API.post('/sales/bulk-import', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+  },
+  downloadTemplate: () =>
+    API.get('/sales/template', { responseType: 'blob' }),
 };
 
 export default API;

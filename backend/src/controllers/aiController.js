@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Product = require("../models/Product");
+const Sale = require("../models/Sale");
 
 // Helper: call Gemini with error handling
 const callGemini = async (prompt) => {
@@ -13,6 +14,25 @@ const callGemini = async (prompt) => {
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 1024,
+    },
+  });
+  const result = await model.generateContent(prompt);
+  return result.response.text().trim();
+};
+
+const callGeminiWithConfig = async (prompt, generationConfig = {}) => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_ANALYST_MODEL || process.env.GEMINI_MAPPING_MODEL || "gemini-2.5-flash",
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 1200,
+      responseMimeType: "application/json",
+      ...generationConfig,
     },
   });
   const result = await model.generateContent(prompt);
@@ -135,6 +155,170 @@ const normalizeSalesInsights = (parsed) => ({
   riskAlerts: Array.isArray(parsed.riskAlerts) ? parsed.riskAlerts : [],
   growthOpportunities: Array.isArray(parsed.growthOpportunities) ? parsed.growthOpportunities : [],
 });
+
+const localDataAnalystAnswer = ({ question, summary, topProducts, byChannel, byLocation, periodDays }) => {
+  const topProduct = topProducts[0];
+  const topChannel = byChannel[0];
+  const topLocation = byLocation[0];
+
+  return {
+    answer: `For the last ${periodDays} day(s), revenue is $${money(summary.revenue)} across ${summary.orders || 0} orders. ${topProduct ? `${topProduct._id} is the strongest product contributor.` : "There is not enough product movement yet for a strong product-level conclusion."}`,
+    supportingNumbers: [
+      `Total revenue: $${money(summary.revenue)}`,
+      `Orders: ${summary.orders || 0}`,
+      `Units sold: ${summary.units || 0}`,
+      topProduct ? `Top product: ${topProduct._id} ($${money(topProduct.revenue)})` : "Top product: unavailable",
+      topChannel ? `Top channel: ${topChannel._id} ($${money(topChannel.revenue)})` : "Top channel: unavailable",
+      topLocation ? `Top location: ${topLocation._id} ($${money(topLocation.revenue)})` : "Top location: unavailable",
+    ],
+    recommendations: [
+      topProduct ? `Feature ${topProduct._id} in campaigns and bundles.` : "Import more sales data for stronger product recommendations.",
+      topChannel ? `Prioritize promotions on ${topChannel._id}, then compare conversion against other channels.` : "Keep channel data clean during imports.",
+      "Review refunded and cancelled rows before making pricing decisions.",
+    ],
+    caveats: [
+      "This answer is based on stored sales records for the selected period.",
+      "Correlation in sales data does not prove the exact cause of changes.",
+    ],
+  };
+};
+
+const buildAnalystDataset = async ({ userId, periodDays }) => {
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
+  const previousStartDate = new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
+
+  const baseMatch = {
+    createdBy: userId,
+    date: { $gte: startDate, $lte: endDate },
+    status: { $ne: "cancelled" },
+  };
+
+  const [
+    summaryRows,
+    previousRows,
+    topProducts,
+    byChannel,
+    byCategory,
+    byLocation,
+    statusBreakdown,
+    dailyTrend,
+    lowStock,
+    productCount,
+  ] = await Promise.all([
+    Sale.aggregate([
+      { $match: baseMatch },
+      {
+        $group: {
+          _id: null,
+          revenue: { $sum: "$revenue" },
+          orders: { $sum: 1 },
+          units: { $sum: "$quantity" },
+          avgOrderValue: { $avg: "$revenue" },
+        },
+      },
+    ]),
+    Sale.aggregate([
+      {
+        $match: {
+          createdBy: userId,
+          date: { $gte: previousStartDate, $lt: startDate },
+          status: { $ne: "cancelled" },
+        },
+      },
+      { $group: { _id: null, revenue: { $sum: "$revenue" }, orders: { $sum: 1 }, units: { $sum: "$quantity" } } },
+    ]),
+    Sale.aggregate([
+      { $match: baseMatch },
+      { $group: { _id: "$productName", revenue: { $sum: "$revenue" }, orders: { $sum: 1 }, units: { $sum: "$quantity" } } },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+    ]),
+    Sale.aggregate([
+      { $match: baseMatch },
+      { $group: { _id: "$channel", revenue: { $sum: "$revenue" }, orders: { $sum: 1 }, units: { $sum: "$quantity" } } },
+      { $sort: { revenue: -1 } },
+    ]),
+    Sale.aggregate([
+      { $match: baseMatch },
+      { $lookup: { from: "products", localField: "product", foreignField: "_id", as: "productData" } },
+      { $addFields: { category: { $ifNull: [{ $arrayElemAt: ["$productData.category", 0] }, "Uncategorized"] } } },
+      { $group: { _id: "$category", revenue: { $sum: "$revenue" }, orders: { $sum: 1 }, units: { $sum: "$quantity" } } },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+    ]),
+    Sale.aggregate([
+      { $match: baseMatch },
+      {
+        $group: {
+          _id: { $ifNull: ["$customer.location", "Unknown"] },
+          revenue: { $sum: "$revenue" },
+          orders: { $sum: 1 },
+          units: { $sum: "$quantity" },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 8 },
+    ]),
+    Sale.aggregate([
+      { $match: { createdBy: userId, date: { $gte: startDate, $lte: endDate } } },
+      { $group: { _id: "$status", revenue: { $sum: "$revenue" }, orders: { $sum: 1 } } },
+      { $sort: { orders: -1 } },
+    ]),
+    Sale.aggregate([
+      { $match: baseMatch },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          revenue: { $sum: "$revenue" },
+          orders: { $sum: 1 },
+          units: { $sum: "$quantity" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Product.find({
+      createdBy: userId,
+      status: "active",
+      $expr: { $lte: ["$stock", "$lowStockThreshold"] },
+    }).select("name category stock lowStockThreshold price").limit(8).lean(),
+    Product.countDocuments({ createdBy: userId }),
+  ]);
+
+  const summary = summaryRows[0] || { revenue: 0, orders: 0, units: 0, avgOrderValue: 0 };
+  const previous = previousRows[0] || { revenue: 0, orders: 0, units: 0 };
+  const revenueGrowth = previous.revenue > 0 ? ((summary.revenue - previous.revenue) / previous.revenue) * 100 : null;
+  const orderGrowth = previous.orders > 0 ? ((summary.orders - previous.orders) / previous.orders) * 100 : null;
+
+  const peakDay = dailyTrend.reduce((best, item) => (!best || item.revenue > best.revenue ? item : best), null);
+  const weakestDay = dailyTrend.reduce((best, item) => (!best || item.revenue < best.revenue ? item : best), null);
+
+  return {
+    periodDays,
+    dateRange: {
+      start: startDate.toISOString().slice(0, 10),
+      end: endDate.toISOString().slice(0, 10),
+    },
+    summary: {
+      revenue: Number(summary.revenue || 0),
+      orders: Number(summary.orders || 0),
+      units: Number(summary.units || 0),
+      avgOrderValue: Number(summary.avgOrderValue || 0),
+      revenueGrowth: revenueGrowth === null ? null : Math.round(revenueGrowth * 10) / 10,
+      orderGrowth: orderGrowth === null ? null : Math.round(orderGrowth * 10) / 10,
+      productCount,
+    },
+    topProducts,
+    byChannel,
+    byCategory,
+    byLocation,
+    statusBreakdown,
+    dailyTrend: dailyTrend.slice(-30),
+    peakDay,
+    weakestDay,
+    lowStock,
+  };
+};
 
 // @desc    Generate AI product description
 // @route   POST /api/ai/generate-description
@@ -416,6 +600,81 @@ Return ONLY valid JSON. No markdown, no explanation.`;
   }
 };
 
+// @desc    Ask an AI analyst about the store's uploaded sales data
+// @route   POST /api/ai/data-analyst
+const askDataAnalyst = async (req, res) => {
+  try {
+    const question = String(req.body.question || "").trim();
+    const periodDays = Math.max(1, Math.min(3650, Number(req.body.days || 30)));
+
+    if (!question) {
+      return res.status(400).json({ success: false, message: "Question is required." });
+    }
+
+    const dataset = await buildAnalystDataset({ userId: req.user._id, periodDays });
+
+    if (!dataset.summary.orders) {
+      return res.json({
+        success: true,
+        data: {
+          answer: "There are no sales records in the selected period yet. Import or record sales first, then ask again.",
+          supportingNumbers: [
+            `Period: ${dataset.dateRange.start} to ${dataset.dateRange.end}`,
+            "Orders: 0",
+            "Revenue: $0.00",
+          ],
+          recommendations: ["Upload a sales CSV or Excel file.", "Use Orders to verify imported rows before analyzing trends."],
+          caveats: ["No sales rows matched the selected period."],
+        },
+        datasetSummary: dataset,
+      });
+    }
+
+    const prompt = `You are SmartStore AI's data analyst. Answer the user's question using only this JSON dataset summary. Be specific, numeric, and concise.
+
+Question: ${question}
+
+Dataset summary:
+${JSON.stringify(dataset)}
+
+Return ONLY valid JSON:
+{
+  "answer": "direct answer in 3-5 sentences",
+  "supportingNumbers": ["metric or comparison 1", "metric or comparison 2", "metric or comparison 3"],
+  "recommendations": ["action 1", "action 2", "action 3"],
+  "caveats": ["short limitation or data-quality note"]
+}`;
+
+    let parsed;
+    try {
+      const raw = await callGeminiWithConfig(prompt);
+      parsed = parseJSON(raw);
+    } catch (error) {
+      console.warn("Using local data analyst fallback:", error.message);
+      parsed = localDataAnalystAnswer({
+        question,
+        summary: dataset.summary,
+        topProducts: dataset.topProducts,
+        byChannel: dataset.byChannel,
+        byLocation: dataset.byLocation,
+        periodDays,
+      });
+    }
+
+    const data = {
+      answer: parsed.answer || "",
+      supportingNumbers: Array.isArray(parsed.supportingNumbers) ? parsed.supportingNumbers : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      caveats: Array.isArray(parsed.caveats) ? parsed.caveats : [],
+    };
+
+    res.json({ success: true, data, datasetSummary: dataset });
+  } catch (error) {
+    console.error("Data analyst error:", error.message);
+    res.status(500).json({ success: false, message: "AI data analyst failed." });
+  }
+};
+
 // @desc    Save AI content to product
 // @route   PUT /api/ai/save/:productId
 const saveAIContent = async (req, res) => {
@@ -464,5 +723,6 @@ module.exports = {
   generateTags,
   generateCaption,
   generateSalesInsights,
+  askDataAnalyst,
   saveAIContent,
 };

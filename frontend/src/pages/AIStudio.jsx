@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Package, Tag, MessageSquare, TrendingUp, Copy, Check, RefreshCw, Save } from 'lucide-react';
+import { Sparkles, Package, Tag, MessageSquare, TrendingUp, Copy, Check, RefreshCw, Save, Search } from 'lucide-react';
 import { productAPI, aiAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,7 @@ const AIStudio = () => {
   const [activeFeature, setActiveFeature] = useState('description');
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const [savedItems, setSavedItems] = useState(new Set());
@@ -19,11 +20,22 @@ const AIStudio = () => {
   const [insightPeriod, setInsightPeriod] = useState('30 days');
 
   useEffect(() => {
-    productAPI.getAll({ limit: 100 })
+    productAPI.getAll({ limit: 5000 })
       .then(r => setProducts(r.data.data || []))
       .catch(() => toast.error('Failed to load products'))
       .finally(() => setProductsLoading(false));
   }, []);
+
+  const filteredProducts = products.filter((product) => {
+    const query = productSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      product.name,
+      product.category,
+      product.sku,
+      product.description,
+    ].some((value) => String(value || '').toLowerCase().includes(query));
+  });
 
   const features = [
     { id: 'description', label: 'Product Description', icon: Package, desc: 'Generate compelling, SEO-optimized product descriptions', color: 'var(--g-blue)' },
@@ -140,30 +152,50 @@ const AIStudio = () => {
                   {Array(3).fill(0).map((_, i) => <div key={i} style={{ height: 48, background: 'var(--surface-alt)', borderRadius: 8 }} className="animate-pulse"></div>)}
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: 280, overflowY: 'auto' }}>
-                  {products.map(p => (
-                    <button
-                      key={p._id}
-                      onClick={() => { setSelectedProduct(p); setResult(null); }}
-                      style={{
-                        width: '100%', textAlign: 'left', padding: '0.625rem', borderRadius: 8, transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', border: 'none',
-                        background: selectedProduct?._id === p._id ? 'var(--surface-alt)' : 'transparent',
-                      }}
-                      className={selectedProduct?._id !== p._id ? 'hover:bg-gray-100' : ''}
-                    >
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt={p.name} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 32, height: 32, borderRadius: 6, background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Package size={14} style={{ color: 'var(--text-muted)' }} />
-                        </div>
-                      )}
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</p>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>${p.price}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={15} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      className="input"
+                      value={productSearch}
+                      onChange={(event) => setProductSearch(event.target.value)}
+                      placeholder="Search products..."
+                      style={{ paddingLeft: '2.25rem', height: 36, fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    {filteredProducts.length} shown · {products.length} total
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: 360, overflowY: 'auto' }}>
+                    {filteredProducts.length === 0 ? (
+                      <div className="empty-state" style={{ padding: '1.5rem' }}>
+                        <Package size={24} />
+                        <p style={{ fontSize: '0.8rem' }}>No matching products</p>
                       </div>
-                    </button>
-                  ))}
+                    ) : filteredProducts.map(p => (
+                      <button
+                        key={p._id}
+                        onClick={() => { setSelectedProduct(p); setResult(null); }}
+                        style={{
+                          width: '100%', textAlign: 'left', padding: '0.625rem', borderRadius: 8, transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', border: 'none',
+                          background: selectedProduct?._id === p._id ? 'var(--surface-alt)' : 'transparent',
+                        }}
+                        className={selectedProduct?._id !== p._id ? 'hover:bg-gray-100' : ''}
+                      >
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: 6, background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Package size={14} style={{ color: 'var(--text-muted)' }} />
+                          </div>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>${p.price} · {p.category || 'Uncategorized'}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

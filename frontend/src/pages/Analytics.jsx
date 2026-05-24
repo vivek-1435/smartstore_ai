@@ -4,8 +4,8 @@ import {
   LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { analyticsAPI } from '../services/api';
-import { TrendingUp, TrendingDown, BarChart3, RefreshCw, AlertTriangle, Package } from 'lucide-react';
+import { aiAPI, analyticsAPI } from '../services/api';
+import { TrendingUp, TrendingDown, BarChart3, RefreshCw, AlertTriangle, Package, Bot, Send, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
@@ -35,12 +35,16 @@ const CHART_DEFAULTS = {
 
 const Analytics = () => {
   const [period, setPeriod] = useState(30);
+  const [customPeriod, setCustomPeriod] = useState('30');
   const [loading, setLoading] = useState(true);
   const [revenueData, setRevenueData] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [channelData, setChannelData] = useState([]);
   const [lowStock, setLowStock] = useState([]);
+  const [analystQuestion, setAnalystQuestion] = useState('Which products and channels should I focus on?');
+  const [analystLoading, setAnalystLoading] = useState(false);
+  const [analystResult, setAnalystResult] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -65,6 +69,35 @@ const Analytics = () => {
   }, [period]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const setAnalyticsPeriod = (days) => {
+    setPeriod(days);
+    setCustomPeriod(String(days));
+  };
+
+  const applyCustomPeriod = () => {
+    const days = Math.max(1, Math.min(3650, Number(customPeriod) || 30));
+    setAnalyticsPeriod(days);
+  };
+
+  const askAnalyst = async (question = analystQuestion) => {
+    const cleanQuestion = question.trim();
+    if (!cleanQuestion) {
+      toast.error('Enter a question for the AI analyst');
+      return;
+    }
+
+    setAnalystQuestion(cleanQuestion);
+    setAnalystLoading(true);
+    try {
+      const { data } = await aiAPI.dataAnalyst({ question: cleanQuestion, days: period });
+      setAnalystResult(data.data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'AI analyst failed');
+    } finally {
+      setAnalystLoading(false);
+    }
+  };
 
   const COLORS = ['#1a73e8', '#34a853', '#fbbc05', '#ea4335', '#a142f4', '#24c1e0', '#ff8bc8', '#ff7043'];
 
@@ -166,7 +199,7 @@ const Analytics = () => {
               {[7, 30, 90].map(d => (
                 <button
                   key={d}
-                  onClick={() => setPeriod(d)}
+                  onClick={() => setAnalyticsPeriod(d)}
                   style={{
                     padding: '0.375rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.15s', border: 'none', cursor: 'pointer',
                     background: period === d ? '#fff' : 'transparent',
@@ -177,6 +210,27 @@ const Analytics = () => {
                   {d}d
                 </button>
               ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'var(--surface-alt)', padding: '0.25rem', borderRadius: 8 }}>
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max="3650"
+                value={customPeriod}
+                onChange={(event) => setCustomPeriod(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') applyCustomPeriod(); }}
+                aria-label="Custom analytics days"
+                style={{ width: 92, height: 32, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+              />
+              <button
+                type="button"
+                onClick={applyCustomPeriod}
+                className="btn btn-secondary"
+                style={{ height: 32, padding: '0 0.65rem', fontSize: '0.75rem' }}
+              >
+                Days
+              </button>
             </div>
             <button onClick={fetchAll} className="btn btn-secondary" disabled={loading} style={{ padding: '0.5rem' }}>
               <RefreshCw size={16} className={loading ? 'spinner' : ''} />
@@ -212,6 +266,95 @@ const Analytics = () => {
           </div>
         ))}
       </div>
+
+      <section className="card" style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'minmax(280px, 0.9fr) minmax(320px, 1.1fr)', gap: '1.25rem', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--g-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bot size={18} style={{ color: 'var(--g-blue)' }} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>AI Sales Data Analyst</h3>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>Ask questions about sales, products, channels, regions, and risks.</p>
+            </div>
+          </div>
+          <textarea
+            className="input"
+            value={analystQuestion}
+            onChange={(event) => setAnalystQuestion(event.target.value)}
+            placeholder="Ask about your uploaded sales data..."
+            rows={3}
+            style={{ resize: 'vertical', minHeight: 82 }}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+            {[
+              'Why did revenue change?',
+              'Which products are growing fastest?',
+              'Which location performs best?',
+              'What should I restock first?',
+            ].map((question) => (
+              <button
+                key={question}
+                type="button"
+                onClick={() => askAnalyst(question)}
+                className="btn btn-ghost"
+                style={{ padding: '0.38rem 0.6rem', fontSize: '0.72rem' }}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => askAnalyst()}
+            disabled={analystLoading}
+            className="btn btn-primary"
+            style={{ justifyContent: 'center', padding: '0.7rem' }}
+          >
+            {analystLoading ? <><RefreshCw size={16} className="spinner" /> Analyzing...</> : <><Send size={16} /> Ask AI Analyst</>}
+          </button>
+        </div>
+
+        <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-alt)', padding: '1rem', minHeight: 220 }}>
+          {!analystResult ? (
+            <div className="empty-state" style={{ height: '100%', padding: '1rem' }}>
+              <Sparkles size={32} />
+              <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Ready to analyze</p>
+              <p>Ask a question and the analyst will use summarized sales data for the selected {period} day period.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div>
+                <p style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--g-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Answer</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>{analystResult.answer}</p>
+              </div>
+              {analystResult.supportingNumbers?.length > 0 && (
+                <div>
+                  <p style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--g-green)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Supporting Numbers</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {analystResult.supportingNumbers.map((item, index) => (
+                      <span key={index} className="chip" style={{ width: 'fit-content' }}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analystResult.recommendations?.length > 0 && (
+                <div>
+                  <p style={{ fontSize: '0.74rem', fontWeight: 800, color: '#b06000', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Recommended Actions</p>
+                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {analystResult.recommendations.map((item, index) => (
+                      <li key={index} style={{ fontSize: '0.84rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {analystResult.caveats?.length > 0 && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{analystResult.caveats.join(' ')}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Main charts */}
       <div className="card" style={{ padding: '1.5rem' }}>

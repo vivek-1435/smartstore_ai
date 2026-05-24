@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Package, RefreshCw, Search, ShoppingBag, X } from 'lucide-react';
+import { CalendarClock, Edit2, Package, Plus, RefreshCw, Save, Search, ShoppingBag, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { salesAPI } from '../services/api';
+import AddSaleModal from '../components/AddSaleModal';
 
 const statusClass = {
   completed: 'badge-success',
@@ -10,17 +11,41 @@ const statusClass = {
   cancelled: 'badge-danger',
 };
 
+const CHANNELS = ['online', 'in-store', 'mobile', 'marketplace', 'social'];
+const STATUSES = ['completed', 'pending', 'refunded', 'cancelled'];
+
+const toDateInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+};
+
+const saleToEditForm = (sale) => ({
+  quantity: sale.quantity || 1,
+  unitPrice: sale.unitPrice || 0,
+  channel: sale.channel || 'online',
+  status: sale.status || 'completed',
+  date: toDateInput(sale.date),
+  customerName: sale.customer?.name || '',
+  customerEmail: sale.customer?.email || '',
+  customerLocation: sale.customer?.location || '',
+});
+
 const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [channel, setChannel] = useState('');
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingId, setSavingId] = useState(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await salesAPI.orders({ search, status, channel, limit: 100 });
+      const { data } = await salesAPI.orders({ search, status, channel, limit: 5000 });
       setOrders(data.data || []);
     } catch {
       toast.error('Failed to load orders');
@@ -46,17 +71,72 @@ const Orders = () => {
     setChannel('');
   };
 
+  const startEdit = (order) => {
+    setEditingId(order._id);
+    setEditForm(saleToEditForm(order));
+  };
+
+  const setEditField = (key, value) => setEditForm((current) => ({ ...current, [key]: value }));
+
+  const saveEdit = async (id) => {
+    setSavingId(id);
+    try {
+      await salesAPI.update(id, {
+        ...editForm,
+        quantity: Number(editForm.quantity),
+        unitPrice: Number(editForm.unitPrice),
+      });
+      toast.success('Sale updated');
+      setEditingId(null);
+      setEditForm(null);
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update sale');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const deleteOrder = async (id) => {
+    if (!window.confirm('Delete this sale record? Analytics will update from the remaining sales.')) return;
+    setSavingId(id);
+    try {
+      await salesAPI.delete(id);
+      toast.success('Sale deleted');
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete sale');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <div className="dashboard-page">
+      <AddSaleModal
+        isOpen={saleModalOpen}
+        onClose={() => setSaleModalOpen(false)}
+        onSuccess={fetchOrders}
+      />
+
       <section className="premium-hero compact">
         <div>
           <span className="hero-eyebrow">Orders</span>
           <h2>Sales and fulfillment activity</h2>
           <p>Review real order records from your sales data, filter by status or channel, and track revenue tied to each order.</p>
         </div>
-        <div className="hero-metric">
-          <strong>{orders.length}</strong>
-          <span>orders shown</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="hero-metric">
+            <strong>{orders.length}</strong>
+            <span>orders shown</span>
+          </div>
+          <button
+            onClick={() => setSaleModalOpen(true)}
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+          >
+            <Plus size={16} /> Add Sale
+          </button>
         </div>
       </section>
 
@@ -109,31 +189,33 @@ const Orders = () => {
       </section>
 
       <section className="card" style={{ overflow: 'hidden' }}>
-        <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+        <div className="table-wrapper" style={{ border: 'none', borderRadius: 0, maxHeight: '68vh', overflow: 'auto' }}>
           <table>
             <thead>
               <tr>
                 <th>Order</th>
                 <th>Customer</th>
+                <th>Location</th>
                 <th>Channel</th>
                 <th>Units</th>
                 <th>Revenue</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array(6).fill(0).map((_, row) => (
                   <tr key={row}>
-                    {Array(7).fill(0).map((__, col) => (
+                    {Array(9).fill(0).map((__, col) => (
                       <td key={col}><div className="animate-pulse" style={{ width: col === 0 ? 150 : 80, height: 16, background: 'var(--surface-alt)', borderRadius: 4 }} /></td>
                     ))}
                   </tr>
                 ))
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={9}>
                     <div className="empty-state">
                       <ShoppingBag size={44} />
                       <p style={{ color: 'var(--text-primary)', fontWeight: 700 }}>No orders found</p>
@@ -141,23 +223,72 @@ const Orders = () => {
                     </div>
                   </td>
                 </tr>
-              ) : orders.map((order) => (
-                <tr key={order._id}>
-                  <td>
-                    <p style={{ fontWeight: 700 }}>{order.productName}</p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>#{order._id.slice(-8).toUpperCase()}</p>
-                  </td>
-                  <td>
-                    <p>{order.customer?.name || 'Guest customer'}</p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{order.customer?.email || 'No email on sale'}</p>
-                  </td>
-                  <td><span className="chip">{order.channel}</span></td>
-                  <td>{order.quantity}</td>
-                  <td style={{ fontWeight: 700 }}>${order.revenue?.toLocaleString()}</td>
-                  <td><span className={`badge ${statusClass[order.status] || 'badge-neutral'}`}>{order.status}</span></td>
-                  <td>{new Date(order.date).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              ) : orders.map((order) => {
+                const isEditing = editingId === order._id;
+                const form = isEditing ? editForm : null;
+                return (
+                  <tr key={order._id}>
+                    <td>
+                      <p style={{ fontWeight: 700 }}>{order.productName}</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>#{order._id.slice(-8).toUpperCase()}</p>
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <div style={{ display: 'grid', gap: '0.35rem', minWidth: 220 }}>
+                          <input className="input" value={form.customerName} onChange={(event) => setEditField('customerName', event.target.value)} placeholder="Customer name" />
+                          <input className="input" value={form.customerEmail} onChange={(event) => setEditField('customerEmail', event.target.value)} placeholder="Email" />
+                        </div>
+                      ) : (
+                        <>
+                          <p>{order.customer?.name || 'Guest customer'}</p>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{order.customer?.email || 'No email on sale'}</p>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <input className="input" value={form.customerLocation} onChange={(event) => setEditField('customerLocation', event.target.value)} placeholder="Location" style={{ minWidth: 150 }} />
+                      ) : order.customer?.location || 'Unknown'}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <select className="input" value={form.channel} onChange={(event) => setEditField('channel', event.target.value)}>
+                          {CHANNELS.map((item) => <option key={item} value={item}>{item}</option>)}
+                        </select>
+                      ) : <span className="chip">{order.channel}</span>}
+                    </td>
+                    <td>
+                      {isEditing ? <input className="input" type="number" min="1" value={form.quantity} onChange={(event) => setEditField('quantity', event.target.value)} style={{ width: 92 }} /> : order.quantity}
+                    </td>
+                    <td style={{ fontWeight: 700 }}>
+                      {isEditing ? <input className="input" type="number" min="0.01" step="0.01" value={form.unitPrice} onChange={(event) => setEditField('unitPrice', event.target.value)} style={{ width: 110 }} /> : `$${order.revenue?.toLocaleString()}`}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <select className="input" value={form.status} onChange={(event) => setEditField('status', event.target.value)}>
+                          {STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
+                        </select>
+                      ) : <span className={`badge ${statusClass[order.status] || 'badge-neutral'}`}>{order.status}</span>}
+                    </td>
+                    <td>
+                      {isEditing ? <input className="input" type="date" value={form.date} onChange={(event) => setEditField('date', event.target.value)} /> : new Date(order.date).toLocaleDateString()}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <button type="button" className="btn btn-primary" onClick={() => saveEdit(order._id)} disabled={savingId === order._id} style={{ padding: '0.45rem' }}><Save size={15} /></button>
+                          <button type="button" className="btn btn-ghost" onClick={() => { setEditingId(null); setEditForm(null); }} style={{ padding: '0.45rem' }}><X size={15} /></button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <button type="button" className="btn btn-secondary" onClick={() => startEdit(order)} style={{ padding: '0.45rem' }}><Edit2 size={15} /></button>
+                          <button type="button" className="btn btn-ghost" onClick={() => deleteOrder(order._id)} disabled={savingId === order._id} style={{ padding: '0.45rem', color: 'var(--g-red)' }}><Trash2 size={15} /></button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -37,7 +37,7 @@ const getRevenue = async (req, res) => {
       const found = revenueData.find(r => r._id === dateStr);
       filledData.push({
         date: dateStr,
-        revenue: found ? found.revenue : 0,
+        revenue: found ? parseFloat(found.revenue.toFixed(2)) : 0,
         orders: found ? found.orders : 0,
         units: found ? found.units : 0,
       });
@@ -50,9 +50,9 @@ const getRevenue = async (req, res) => {
       success: true,
       data: {
         chart: filledData,
-        totalRevenue,
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
         totalOrders,
-        avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        avgOrderValue: totalOrders > 0 ? parseFloat((totalRevenue / totalOrders).toFixed(2)) : 0,
         period: `${days} days`,
       },
     });
@@ -62,19 +62,62 @@ const getRevenue = async (req, res) => {
   }
 };
 
-// @desc    Get top selling products
+// @desc    Get top selling products (computed from Sale records, not stale Product fields)
 // @route   GET /api/analytics/top-products
 const getTopProducts = async (req, res) => {
   try {
     const { limit = 5 } = req.query;
 
-    const topProducts = await Product.find({ createdBy: req.user._id })
-      .sort({ totalRevenue: -1 })
-      .limit(Number(limit))
-      .select('name category price totalSales totalRevenue stock imageUrl');
+    // Aggregate from actual Sale records so data is always fresh
+    const topFromSales = await Sale.aggregate([
+      {
+        $match: {
+          createdBy: req.user._id,
+          status: { $ne: 'cancelled' },
+        },
+      },
+      {
+        $group: {
+          _id: '$product',
+          productName: { $first: '$productName' },
+          totalRevenue: { $sum: '$revenue' },
+          totalSales: { $sum: '$quantity' },
+          orderCount: { $sum: 1 },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: Number(limit) },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'productData',
+        },
+      },
+      {
+        $addFields: {
+          productInfo: { $arrayElemAt: ['$productData', 0] },
+        },
+      },
+      {
+        $project: {
+          _id: '$_id',
+          name: { $ifNull: ['$productInfo.name', '$productName'] },
+          category: { $ifNull: ['$productInfo.category', 'Unknown'] },
+          price: { $ifNull: ['$productInfo.price', 0] },
+          imageUrl: { $ifNull: ['$productInfo.imageUrl', ''] },
+          stock: { $ifNull: ['$productInfo.stock', 0] },
+          totalRevenue: 1,
+          totalSales: 1,
+          orderCount: 1,
+        },
+      },
+    ]);
 
-    res.json({ success: true, data: topProducts });
+    res.json({ success: true, data: topFromSales });
   } catch (error) {
+    console.error('Top products analytics error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch top products.' });
   }
 };
@@ -93,12 +136,23 @@ const getRevenueByCategory = async (req, res) => {
           as: 'productData',
         },
       },
-      { $unwind: '$productData' },
+      {
+        $addFields: {
+          category: {
+            $ifNull: [
+              { $arrayElemAt: ['$productData.category', 0] },
+              'Uncategorized',
+            ],
+          },
+        },
+      },
       {
         $group: {
-          _id: '$productData.category',
+          _id: '$category',
           revenue: { $sum: '$revenue' },
+          totalRevenue: { $sum: '$revenue' },
           orders: { $sum: 1 },
+          units: { $sum: '$quantity' },
         },
       },
       { $sort: { revenue: -1 } },
@@ -151,7 +205,7 @@ const getSummary = async (req, res) => {
       }),
       Sale.aggregate([
         { $match: { createdBy: req.user._id, date: { $gte: thirtyDaysAgo }, status: { $ne: 'cancelled' } } },
-        { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } },
+        { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 }, units: { $sum: '$quantity' } } },
       ]),
       Sale.aggregate([
         { $match: { createdBy: req.user._id, date: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }, status: { $ne: 'cancelled' } } },
@@ -163,7 +217,7 @@ const getSummary = async (req, res) => {
         .populate('product', 'name imageUrl'),
     ]);
 
-    const curr = currentPeriodSales[0] || { revenue: 0, orders: 0 };
+    const curr = currentPeriodSales[0] || { revenue: 0, orders: 0, units: 0 };
     const prev = previousPeriodSales[0] || { revenue: 0, orders: 0 };
 
     const revenueGrowth = prev.revenue > 0 ? ((curr.revenue - prev.revenue) / prev.revenue) * 100 : 0;
@@ -175,11 +229,11 @@ const getSummary = async (req, res) => {
         totalProducts,
         activeProducts,
         lowStockCount,
-        revenue: curr.revenue,
+        revenue: parseFloat(curr.revenue.toFixed(2)),
         revenueGrowth: Math.round(revenueGrowth * 10) / 10,
         totalOrders: curr.orders,
         ordersGrowth: Math.round(ordersGrowth * 10) / 10,
-        avgOrderValue: curr.orders > 0 ? Math.round(curr.revenue / curr.orders) : 0,
+        avgOrderValue: curr.orders > 0 ? parseFloat((curr.revenue / curr.orders).toFixed(2)) : 0,
         recentSales,
       },
     });
@@ -195,7 +249,15 @@ const getSalesByChannel = async (req, res) => {
   try {
     const data = await Sale.aggregate([
       { $match: { createdBy: req.user._id, status: { $ne: 'cancelled' } } },
-      { $group: { _id: '$channel', revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } },
+      {
+        $group: {
+          _id: '$channel',
+          revenue: { $sum: '$revenue' },
+          totalRevenue: { $sum: '$revenue' },
+          orders: { $sum: 1 },
+          units: { $sum: '$quantity' },
+        },
+      },
       { $sort: { revenue: -1 } },
     ]);
     res.json({ success: true, data });
