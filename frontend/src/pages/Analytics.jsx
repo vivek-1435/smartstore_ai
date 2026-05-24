@@ -189,12 +189,12 @@ const Analytics = () => {
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
-        <div className="analytics-header-row">
+        <div className="page-header-row">
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Analytics</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Detailed performance insights for your store</p>
           </div>
-          <div className="analytics-header-controls">
+          <div className="page-header-controls">
             <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--surface-alt)', padding: '0.25rem', borderRadius: '8px' }}>
               {[7, 30, 90].map(d => (
                 <button

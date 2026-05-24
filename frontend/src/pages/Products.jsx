@@ -518,17 +518,19 @@ const Products = () => {
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="page-header-row">
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Products</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               {displayedProducts.length} shown • {products.length} total • ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 0 })} inventory
               {lowStockCount > 0 && <span className="badge badge-warning">⚠️ {lowStockCount} low stock</span>}
             </p>
           </div>
-          <button onClick={() => { setEditProduct(null); setModalOpen(true); }} className="btn btn-primary">
-            <Plus size={16} /> Add Product
-          </button>
+          <div className="page-header-controls">
+            <button onClick={() => { setEditProduct(null); setModalOpen(true); }} className="btn btn-primary">
+              <Plus size={16} /> Add Product
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1375,8 +1375,8 @@ tr:hover td { background: var(--g-blue-light); transition: background 0.1s; }
   gap: 1rem;
 }
 
-/* ── Analytics grids ── */
-.analytics-header-row {
+/* ── Page grids ── */
+.page-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1384,7 +1384,7 @@ tr:hover td { background: var(--g-blue-light); transition: background 0.1s; }
   gap: 0.75rem;
 }
 
-.analytics-header-controls {
+.page-header-controls {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1599,12 +1599,12 @@ tr:hover td { background: var(--g-blue-light); transition: background 0.1s; }
     grid-template-columns: 1fr;
   }
 
-  /* Analytics header: stack vertically */
-  .analytics-header-row {
+  /* Page header: stack vertically */
+  .page-header-row {
     flex-direction: column;
     align-items: flex-start;
   }
-  .analytics-header-controls {
+  .page-header-controls {
     width: 100%;
     justify-content: flex-start;
   }
