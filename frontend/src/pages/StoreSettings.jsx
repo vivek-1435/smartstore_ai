@@ -206,7 +206,7 @@ const StoreSettings = () => {
             <Settings size={17} />
             <span>Changes update your live workspace identity and local store preferences.</span>
           </div>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving} style={{ justifyContent: 'center' }}>
             {saving ? <div className="spinner" /> : <Save size={16} />}
             Save settings
           </button>

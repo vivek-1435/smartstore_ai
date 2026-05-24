@@ -125,8 +125,8 @@ const Orders = () => {
           <h2>Sales and fulfillment activity</h2>
           <p>Review real order records from your sales data, filter by status or channel, and track revenue tied to each order.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div className="hero-metric">
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+          <div className="hero-metric" style={{ flex: '1 1 200px' }}>
             <strong>{orders.length}</strong>
             <span>orders shown</span>
           </div>

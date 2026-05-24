@@ -218,16 +218,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-page">
       {/* Header */}
-      <section className="premium-hero" style={{ position: 'relative' }}>
-        <button
-          onClick={fetchData}
-          className="btn btn-secondary"
-          disabled={loading}
-          style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-        >
-          <RefreshCw size={15} className={loading ? "spinner" : ""} />
-          Refresh
-        </button>
+      <section className="premium-hero">
         <div>
           <span className="hero-eyebrow">Premium SaaS Dashboard</span>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -236,6 +227,17 @@ const Dashboard = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Analyze product performance, revenue trends, sales growth, and low-performing products for {user?.storeName}.
           </p>
+        </div>
+        <div>
+          <button
+            onClick={fetchData}
+            className="btn btn-secondary"
+            disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+          >
+            <RefreshCw size={15} className={loading ? "spinner" : ""} />
+            Refresh
+          </button>
         </div>
       </section>
 
