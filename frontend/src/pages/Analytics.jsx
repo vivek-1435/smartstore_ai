@@ -189,12 +189,12 @@ const Analytics = () => {
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div className="page-header" style={{ padding: '0 0 1rem 0', background: 'transparent', position: 'static' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="analytics-header-row">
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Analytics</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Detailed performance insights for your store</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="analytics-header-controls">
             <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--surface-alt)', padding: '0.25rem', borderRadius: '8px' }}>
               {[7, 30, 90].map(d => (
                 <button
@@ -267,7 +267,7 @@ const Analytics = () => {
         ))}
       </div>
 
-      <section className="card" style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'minmax(280px, 0.9fr) minmax(320px, 1.1fr)', gap: '1.25rem', alignItems: 'stretch' }}>
+      <section className="card analytics-analyst-section">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--g-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -390,7 +390,7 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+      <div className="analytics-charts-grid">
         {/* Top Products Bar */}
         <div className="card" style={{ padding: '1.5rem' }}>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Top Products by Revenue</h3>
@@ -430,7 +430,7 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+      <div className="analytics-charts-grid">
         {/* Sales by Channel */}
         <div className="card" style={{ padding: '1.5rem' }}>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Sales by Channel</h3>

@@ -4,6 +4,7 @@ import {
   Bell,
   ChevronDown,
   LogOut,
+  Menu,
   Moon,
   Search,
   Settings,
@@ -25,7 +26,7 @@ const pageMeta = {
   '/settings': ['Settings', 'Configure your store workspace and preferences'],
 };
 
-const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
+const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode, onMenuClick }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,6 +52,16 @@ const Topbar = ({ lowStockCount = 0, darkMode = false, onToggleDarkMode }) => {
 
   return (
     <header className="premium-topbar">
+      {/* Mobile hamburger */}
+      <button
+        type="button"
+        className="icon-button topbar-hamburger"
+        onClick={onMenuClick}
+        aria-label="Open navigation menu"
+      >
+        <Menu size={18} />
+      </button>
+
       <div className="topbar-title">
         <span>SmartStore AI</span>
         <h1>{title}</h1>

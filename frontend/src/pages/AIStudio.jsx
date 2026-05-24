@@ -112,7 +112,7 @@ const AIStudio = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Generate product content plus pricing, inventory, trend, and sales growth recommendations.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem' }}>
+      <div className="ai-studio-layout">
         {/* Left Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Feature selector */}

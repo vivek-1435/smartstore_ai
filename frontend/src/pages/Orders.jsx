@@ -188,7 +188,63 @@ const Orders = () => {
         </button>
       </section>
 
-      <section className="card" style={{ overflow: 'hidden' }}>
+      {/* Mobile card view (phones) */}
+      <div className="mobile-card-list">
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="order-mobile-card">
+                <div style={{ height: 18, width: 200, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" />
+                <div style={{ height: 14, width: 120, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" />
+              </div>
+            ))
+          : orders.length === 0
+          ? (
+              <div className="card">
+                <div className="empty-state">
+                  <ShoppingBag size={44} />
+                  <p style={{ color: 'var(--text-primary)', fontWeight: 700 }}>No orders found</p>
+                  <p>Orders will appear here when sales records exist for this store.</p>
+                </div>
+              </div>
+            )
+          : orders.map((order) => (
+              <div key={order._id} className="order-mobile-card">
+                <div className="order-mobile-card-row">
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{order.productName}</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>#{order._id.slice(-8).toUpperCase()}</p>
+                  </div>
+                  <span className={`badge ${statusClass[order.status] || 'badge-neutral'}`}>{order.status}</span>
+                </div>
+                <div className="order-mobile-card-row">
+                  <span className="label">Customer</span>
+                  <span style={{ fontSize: '0.84rem' }}>{order.customer?.name || 'Guest'}</span>
+                </div>
+                <div className="order-mobile-card-row">
+                  <span className="label">Channel</span>
+                  <span className="chip" style={{ fontSize: '0.75rem' }}>{order.channel}</span>
+                </div>
+                <div className="order-mobile-card-row">
+                  <span className="label">Units / Revenue</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>{order.quantity} × ${order.revenue?.toLocaleString()}</span>
+                </div>
+                <div className="order-mobile-card-row">
+                  <span className="label">Date</span>
+                  <span style={{ fontSize: '0.84rem' }}>{new Date(order.date).toLocaleDateString()}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border)' }}>
+                  <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => startEdit(order)}>
+                    <Edit2 size={14} /> Edit
+                  </button>
+                  <button type="button" className="btn btn-danger" style={{ padding: '0.5rem 0.75rem' }} onClick={() => deleteOrder(order._id)} disabled={savingId === order._id}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+      </div>
+
+      <section className="card products-table-wrapper" style={{ overflow: 'hidden' }}>
         <div className="table-wrapper" style={{ border: 'none', borderRadius: 0, maxHeight: '68vh', overflow: 'auto' }}>
           <table>
             <thead>

@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 const Layout = () => {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('smartstore_theme') === 'dark');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     analyticsAPI.lowStock()
@@ -19,6 +20,12 @@ const Layout = () => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
     localStorage.setItem('smartstore_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    document.body.style.overflow = mobileSidebarOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileSidebarOpen]);
 
   return (
     <div className="app-shell">
@@ -36,9 +43,18 @@ const Layout = () => {
           error:   { iconTheme: { primary: '#ea4335', secondary: '#202124' } },
         }}
       />
-      <Sidebar lowStockCount={lowStockCount} />
+      <Sidebar
+        lowStockCount={lowStockCount}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
       <div className="app-content">
-        <Topbar lowStockCount={lowStockCount} darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />
+        <Topbar
+          lowStockCount={lowStockCount}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((value) => !value)}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+        />
         <main className="app-main">
           <Outlet />
         </main>

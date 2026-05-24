@@ -567,8 +567,76 @@ const Products = () => {
         )}
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      {/* Mobile card view (phones) */}
+      <div className="mobile-card-list">
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="product-mobile-card">
+                <div style={{ height: 18, width: 160, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" />
+                <div style={{ height: 14, width: 100, background: 'var(--surface-alt)', borderRadius: 4 }} className="animate-pulse" />
+              </div>
+            ))
+          : displayedProducts.length === 0
+          ? (
+              <div className="card">
+                <div className="empty-state">
+                  <Package size={48} style={{ color: 'var(--text-muted)' }} />
+                  <p style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>No products found</p>
+                  <p style={{ fontSize: '0.875rem' }}>Add your first product to start selling.</p>
+                </div>
+              </div>
+            )
+          : displayedProducts.map(product => (
+              <div key={product._id} className="product-mobile-card">
+                <div className="product-mobile-card-header">
+                  <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {product.imageUrl
+                      ? <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <Image size={20} style={{ color: 'var(--text-muted)' }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.name}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{product.category}</p>
+                    {product.aiDescription && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.68rem', color: 'var(--g-blue)', fontWeight: 600 }}>
+                        <Sparkles size={10} /> AI Enhanced
+                      </span>
+                    )}
+                  </div>
+                  <span className={getStatusBadge(product.status)}>{product.status}</span>
+                </div>
+                <div className="product-mobile-card-meta">
+                  <div className="product-mobile-card-meta-item">
+                    <span className="meta-label">Price</span>
+                    <span className="meta-value">${product.price?.toFixed(2)}</span>
+                  </div>
+                  <div className="product-mobile-card-meta-item">
+                    <span className="meta-label">Stock</span>
+                    <span className="meta-value" style={{ color: product.isLowStock ? 'var(--g-yellow)' : product.stock === 0 ? 'var(--g-red)' : 'var(--text-primary)' }}>
+                      {product.isLowStock && '⚠ '}{product.stock}
+                    </span>
+                  </div>
+                  <div className="product-mobile-card-meta-item">
+                    <span className="meta-label">Sales</span>
+                    <span className="meta-value">{product.totalSales || 0} units</span>
+                  </div>
+                  <div className="product-mobile-card-meta-item">
+                    <span className="meta-label">Revenue</span>
+                    <span className="meta-value">${(product.totalRevenue || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="product-mobile-card-actions">
+                  <button onClick={() => setDetailsProduct(product)} className="btn btn-secondary"><Eye size={15} /> View</button>
+                  <button onClick={() => setAiProduct(product)} className="btn btn-secondary"><Sparkles size={15} /> AI</button>
+                  <button onClick={() => { setEditProduct(product); setModalOpen(true); }} className="btn btn-secondary"><Edit2 size={15} /> Edit</button>
+                  <button onClick={() => setDeleteConfirm(product._id)} className="btn btn-danger"><Trash2 size={15} /></button>
+                </div>
+              </div>
+            ))}
+      </div>
+
+      {/* Table (desktop/tablet) */}
+      <div className="card products-table-wrapper" style={{ overflow: 'hidden' }}>
         <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
           <table>
             <thead>

@@ -276,7 +276,7 @@ const Dashboard = () => {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+      <div className="dashboard-charts-row">
         {/* Revenue Chart */}
         <div className="card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -375,7 +375,7 @@ const Dashboard = () => {
       </div>
 
       {/* Low Stock + AI Insights */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1rem' }}>
+      <div className="dashboard-bottom-row">
         {/* Low Stock Alert */}
         {lowStock.length > 0 && (
           <div className="card" style={{ padding: '1.5rem', borderLeft: '4px solid var(--g-yellow)' }}>
